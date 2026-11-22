@@ -3,7 +3,7 @@ import { hashPassword, verifyPassword, createSession, audit } from "./_auth.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default async function handler(req) {
+const handler = async (req) => {
   if (req.method !== "POST") return bad("Method not allowed", 405);
   let body;
   try {
@@ -42,3 +42,6 @@ export default async function handler(req) {
 
   return bad("Unknown action");
 }
+
+export const POST = handler;
+export default handler;

@@ -61,3 +61,8 @@ export default async function handler(req) {
 
   return bad("Method not allowed", 405);
 }
+
+export const GET = handler;
+export const PUT = handler;
+export const POST = handler;
+export const OPTIONS = handler;

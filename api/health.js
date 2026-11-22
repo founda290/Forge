@@ -11,3 +11,5 @@ export default async function handler() {
     time: new Date().toISOString(),
   });
 }
+
+export const GET = handler;
