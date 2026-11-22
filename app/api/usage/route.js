@@ -1,5 +1,5 @@
-import { sql, json, bad } from "./_db.js";
-import { requireUser } from "./_auth.js";
+import { sql, json, bad } from "../../../lib/db.js";
+import { requireUser } from "../../../lib/auth.js";
 
 const num = (v) => {
   const n = Number(v);
@@ -69,12 +69,14 @@ async function handler(req) {
       }),
       { calls: 0, promptTokens: 0, completionTokens: 0, costUsd: 0 }
     );
-    return json({ totals, daily: rows });
+    const me = await sql`select plan from users where id = ${user.id}`;
+    return json({ totals, daily: rows, plan: me[0]?.plan || "free" });
   }
 
   return bad("Method not allowed", 405);
 }
+export const GET = handler;
 export const POST = handler;
 export const OPTIONS = handler;
 
-export default { fetch: handler };
+export const dynamic = "force-dynamic";

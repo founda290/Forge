@@ -1,4 +1,4 @@
-import { sql, json } from "./_db.js";
+import { sql, json } from "../../../lib/db.js";
 
 async function handler() {
   const started = Date.now();
@@ -12,4 +12,6 @@ async function handler() {
   });
 }
 
-export default { fetch: handler };
+export const GET = handler;
+
+export const dynamic = "force-dynamic";

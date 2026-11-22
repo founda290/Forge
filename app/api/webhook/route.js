@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { sql, json, bad } from "./_db.js";
-import { requireUser } from "./_auth.js";
+import { sql, json, bad } from "../../../lib/db.js";
+import { requireUser } from "../../../lib/auth.js";
 
 async function handler(req) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
@@ -61,8 +61,9 @@ async function handler(req) {
 
   return bad("Method not allowed", 405);
 }
+export const GET = handler;
 export const PUT = handler;
 export const POST = handler;
 export const OPTIONS = handler;
 
-export default { fetch: handler };
+export const dynamic = "force-dynamic";

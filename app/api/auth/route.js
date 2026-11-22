@@ -1,5 +1,5 @@
-import { sql, json, bad } from "./_db.js";
-import { hashPassword, verifyPassword, createSession, audit } from "./_auth.js";
+import { sql, json, bad } from "../../../lib/db.js";
+import { hashPassword, verifyPassword, createSession, audit } from "../../../lib/auth.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,24 +23,26 @@ const handler = async (req) => {
     const inserted = await sql`
       insert into users (email, password_hash, display_name)
       values (${mail}, ${hashPassword(password)}, ${displayName ? String(displayName).slice(0, 80) : mail})
-      returning id, email, display_name
+      returning id, email, display_name, plan
     `;
     const user = inserted[0];
     await audit(user.id, "register", null, req);
     const token = await createSession(user.id, req.headers.get("user-agent"));
-    return json({ token, user: { id: user.id, email: user.email, displayName: user.display_name } }, 201);
+    return json({ token, user: { id: user.id, email: user.email, displayName: user.display_name, plan: user.plan } }, 201);
   }
 
   if (action === "login") {
-    const rows = await sql`select id, email, display_name, password_hash from users where email = ${mail}`;
+    const rows = await sql`select id, email, display_name, password_hash, plan from users where email = ${mail}`;
     const user = rows[0];
     if (!user || !verifyPassword(password, user.password_hash)) return bad("Invalid email or password", 401);
     const token = await createSession(user.id, req.headers.get("user-agent"));
     await audit(user.id, "login", null, req);
-    return json({ token, user: { id: user.id, email: user.email, displayName: user.display_name } });
+    return json({ token, user: { id: user.id, email: user.email, displayName: user.display_name, plan: user.plan } });
   }
 
   return bad("Unknown action");
 }
 
-export default { fetch: handler };
+export const POST = handler;
+
+export const dynamic = "force-dynamic";

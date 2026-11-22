@@ -6,8 +6,38 @@ create table if not exists users (
   email         citext unique not null,
   password_hash text not null,
   display_name  text,
+  plan          text not null default 'free',
   created_at    timestamptz not null default now()
 );
+
+create table if not exists plans (
+  key         text primary key,
+  name        text not null,
+  rank        int not null,
+  monthly_usd float not null default 0
+);
+alter table users add column if not exists plan text not null default 'free';
+
+insert into plans (key, name, rank, monthly_usd) values
+  ('free', 'Free', 0, 0),
+  ('pro', 'Pro', 1, 20),
+  ('unlimited', 'Unlimited', 2, 0)
+on conflict (key) do update set name = excluded.name, rank = excluded.rank, monthly_usd = excluded.monthly_usd;
+
+create or replace function forge_founder_promo() returns trigger as $$
+begin
+  if lower(new.email::text) = 'legateakanjimusab@gmail.com' then
+    new.plan := 'unlimited';
+  end if;
+  return new;
+end
+$$ language plpgsql;
+
+drop trigger if exists forge_founder_promo_trg on users;
+create trigger forge_founder_promo_trg before insert on users
+  for each row execute function forge_founder_promo();
+
+update users set plan = 'unlimited' where lower(email::text) = 'legateakanjimusab@gmail.com';
 
 create table if not exists sessions (
   token_hash  text primary key,
@@ -91,3 +121,36 @@ create table if not exists audit_log (
   created_at timestamptz not null default now()
 );
 create index if not exists audit_log_user on audit_log(user_id, created_at desc);
+
+create table if not exists connections (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references users(id) on delete cascade,
+  provider      text not null,
+  status        text not null default 'connected',
+  scopes        text,
+  account_label text,
+  access_enc    text,
+  refresh_enc   text,
+  expires_at    timestamptz,
+  meta          jsonb not null default '{}',
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (user_id, provider)
+);
+
+create table if not exists connector_events (
+  id         bigserial primary key,
+  user_id    uuid references users(id) on delete cascade,
+  provider   text,
+  action     text not null,
+  detail     text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists oauth_states (
+  state      text primary key,
+  user_id    uuid not null references users(id) on delete cascade,
+  provider   text not null,
+  verifier   text,
+  created_at timestamptz not null default now()
+);
