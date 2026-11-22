@@ -1,0 +1,9 @@
+name = "forge-gateway"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# npx wrangler secret put FORGE_TOKEN
+
+[[kv_namespaces]]
+binding = "FORGE_KV"
+id = "your-kv-id"

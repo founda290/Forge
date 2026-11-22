@@ -1,0 +1,13 @@
+{
+  "name": "forge-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Forge Studio - agentic LLM workspace. Static app on Vercel + /api serverless functions backed by Neon Postgres.",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

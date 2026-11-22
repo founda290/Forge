@@ -2835,5 +2835,211 @@ S.connectors.filter(c=>c.status==='online').forEach(c=>connectURL(c,{silent:true
 if(!Object.keys(S.keys).some(k=>!k.startsWith('__'))&&!provById(S.activeProvider)?.nokey)
   setTimeout(()=>toast('Add a gateway key to start writing. Connectors need only a URL.',{type:'in',timeout:7500,action:{label:'Open gateways',fn:()=>openProviders()}}),700);
 </script>
+<script type="module">
+/* ══ CLOUD SYNC · self-contained add-on: account, state sync, usage, webhooks, worker ══ */
+const CK='fs.cloud';
+const Ce=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const Crd=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}};
+const Cwr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const Cloud=Crd(CK)||{token:'',email:'',uid:''};
+const deviceId=(()=>{let d=Crd('fs.device');if(!d){d='dev-'+(crypto.randomUUID?crypto.randomUUID():''+Date.now()+Math.random().toString(36).slice(2));Cwr('fs.device',d)}return d})();
+const auth=h=>Cloud.token?{...h,Authorization:'Bearer '+Cloud.token}:h;
+const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{'Content-Type':'application/json',...auth(o.headers||{}),'x-forge-device':deviceId}});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j};
+const logIn=(t,u)=>{Cloud.token=t;Cloud.email=u.email;Cloud.uid=u.id;Cwr(CK,Cloud)};
+const copy=async t=>{try{await navigator.clipboard.writeText(t);return true}catch{return false}};
+
+/* floating entry */
+const btn=document.createElement('button');
+btn.textContent='☁ Sync';
+Object.assign(btn.style,{position:'fixed',left:'10px',bottom:'62px',zIndex:2147483000,fontFamily:'var(--ui,sans-serif)',fontSize:'12px',fontWeight:600,color:'var(--tx,#111)',background:'var(--surface,#fff)',border:'1px solid var(--line,#ddd)',borderRadius:'999px',padding:'6px 12px',cursor:'pointer',boxShadow:'var(--sh2,0 2px 8px rgba(0,0,0,.08))',display:'none'});
+document.body.appendChild(btn);
+const cloudOn=()=>!!Cloud.token;
+const paintBtn=()=>{btn.style.display=location.protocol.startsWith('http')?'block':'none';btn.textContent=cloudOn()?'☁ '+(Cloud.email.split('@')[0]||''):'☁ Sync';btn.title=cloudOn()?'Forge Cloud · signed in · click to sync':'Forge Cloud · sign in'};
+paintBtn();
+
+/* fetch wrapper → records real usage from chat responses when signed in */
+const origFetch=window.fetch.bind(window);
+window.fetch=async(...args)=>{
+  const res=await origFetch(...args);
+  try{
+    const url=typeof args[0]==='string'?args[0]:(args[0]?.url||'');
+    if(url.includes('/chat/completions')&&cloudOn()&&res.ok){
+      const reqBody=(()=>{try{return JSON.parse(args[1]?.body||'{}')}catch{return{}}})();
+      const clone=res.clone();
+      clone.text().then(txt=>{
+        let prompt=0,completion=0,cost=0,deltaChars=0;
+        if(txt.includes('data:')){
+          for(const line of txt.split('\n')){
+            const l=line.trim();if(!l.startsWith('data:'))continue;
+            try{const j=JSON.parse(l.slice(5).trim());const u=j.usage||{};
+              if(u.prompt_tokens)prompt=u.prompt_tokens;
+              if(u.completion_tokens)completion=u.completion_tokens;
+              cost=u.total_cost||j.cost||cost;
+              const d=j.choices?.[0]?.delta?.content;if(d)deltaChars+=d.length;
+            }catch{}
+          }
+          if(!prompt&&!completion)completion=Math.round(deltaChars/4);
+        }else{
+          try{const j=JSON.parse(txt);const u=j.usage||{};
+            prompt=u.prompt_tokens||0;completion=u.completion_tokens||0;cost=u.total_cost||u.cost||0;
+          }catch{return}
+        }
+        if(!prompt&&!completion)return;
+        const st=Crd('fs.state')||{};
+        api('/api/usage',{method:'POST',body:JSON.stringify({provider:st.activeProvider||'unknown',model:reqBody.model||st.activeModel||'unknown',chatId:st.activeChat||'',promptTokens:prompt,completionTokens:completion,costUsd:cost})}).catch(()=>{});
+      }).catch(()=>{});
+    }
+  }catch{}
+  return res;
+};
+
+/* state sync (last-write-wins) */
+let pushing=false;
+async function pushState(silent){
+  if(!cloudOn()||pushing)return;pushing=true;
+  try{
+    const payload={state:Crd('fs.state'),prefs:Crd('fs.prefs'),syncedAt:new Date().toISOString()};
+    await api('/api/state',{method:'PUT',body:JSON.stringify(payload)});
+    if(!silent)note('ok','Pushed workspace to Neon ('+JSON.stringify(payload).length+' bytes).');
+  }catch(e){if(!silent)note('er','Push failed: '+e.message)}
+  pushing=false;
+}
+window.addEventListener('pagehide',()=>{if(cloudOn()&&localStorage.getItem('fs.autoSync')==='1')pushState(true)});
+
+/* modal */
+let ov=null;
+const closeOv=()=>{ov&&ov.remove();ov=null};
+function note(kind,msg){
+  const n=ov&&ov.querySelector('#ovNote');if(!n)return;
+  n.style.color=kind==='ok'?'var(--ok,#2E6B4F)':kind==='er'?'var(--danger,#A3392F)':'var(--tx2,#555)';
+  n.textContent=msg;
+}
+const field=(label,id,val,type='text')=>`<label style="display:flex;flex-direction:column;gap:4px;font-size:12px"><span style="color:var(--tx2,#555)">${Ce(label)}</span><input id="${id}" type="${type}" value="${Ce(val||'')}" style="padding:8px 10px;border:1px solid var(--line,#ddd);border-radius:8px;background:var(--surface2,#fafaf8);color:var(--tx,#111);font:inherit"/></label>`;
+const obtn=(id,label,primary)=>`<button id="${id}" style="border:1px solid ${primary?'var(--ac,#1F5E52)':'var(--line,#ddd)'};background:${primary?'var(--ac,#1F5E52)':'transparent'};color:${primary?'var(--ac-ink,#fff)':'var(--tx,#111)'};border-radius:10px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600">${Ce(label)}</button>`;
+const hh=t=>`<div style="font-weight:700;font-size:11px;color:var(--tx3,#888);text-transform:uppercase;letter-spacing:.05em">${Ce(t)}</div>`;
+const authed=()=>cloudOn()?null:`<div style="color:var(--tx2,#555)">Sign in first — see the Account tab.</div>`;
+
+function openOv(tab='account'){
+  closeOv();
+  ov=document.createElement('div');
+  Object.assign(ov.style,{position:'fixed',inset:0,zIndex:2147483100,background:'var(--scrim,rgba(0,0,0,.4))',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--ui,sans-serif)'});
+  ov.innerHTML=`<div style="width:min(600px,92vw);max-height:86vh;overflow:auto;background:var(--surface,#fff);color:var(--tx,#111);border:1px solid var(--line,#ddd);border-radius:var(--r3,18px);box-shadow:var(--sh3,0 24px 70px rgba(0,0,0,.18));padding:20px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <b style="font-size:15px">Forge Cloud</b><span style="color:var(--tx3,#888);font-size:12px">Neon Postgres · Vercel · Cloudflare Worker</span>
+      <span style="flex:1"></span><button id="ovX" style="border:0;background:none;font-size:18px;cursor:pointer;color:inherit">✕</button></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="ovTabs">
+      ${['account','sync','usage','webhooks','worker'].map(t=>`<button data-tab="${t}" style="border:1px solid var(--line,#ddd);background:${tab===t?'var(--ac-bg,#e8f0ee)':'transparent'};color:var(--tx,#111);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
+    <div id="ovBody" style="display:flex;flex-direction:column;gap:10px;font-size:13px"></div>
+    <div id="ovNote" style="margin-top:10px;font-size:12px;min-height:16px;color:var(--tx2,#555)"></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ovX').onclick=closeOv;
+  ov.onclick=e=>{if(e.target===ov)closeOv()};
+  ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>openOv(b.dataset.tab));
+  paintBody(tab);
+}
+
+function paintBody(tab){
+  const body=ov.querySelector('#ovBody');
+  if(!body)return;
+  if(tab==='account'){
+    if(cloudOn()){
+      body.innerHTML=`${hh('Signed in')}
+        <div>Signed in as <b>${Ce(Cloud.email)}</b></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${obtn('acOut','Sign out')}${obtn('acPing','Test API',true)}</div>
+        <div style="color:var(--tx3,#888);font-size:12px">Sessions last 30 days. State snapshots are stored per account + device in Neon Postgres.</div>`;
+      body.querySelector('#acOut').onclick=()=>{delete Cloud.token;Cloud.email='';Cloud.uid='';Cwr(CK,Cloud);paintBtn();openOv('account')};
+      body.querySelector('#acPing').onclick=async()=>{try{const j=await api('/api/health');note('ok','API healthy · database '+j.db+' · '+j.latencems+'ms')}catch(e){note('er',e.message)}};
+    }else{
+      body.innerHTML=`${hh('Sign in or create an account')}
+        ${field('Email','acEm','')} ${field('Password (min 8 chars)','acPw','','password')} ${field('Display name (new accounts)','acDn','')}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${obtn('acLin','Sign in',true)}${obtn('acReg','Create account')}</div>`;
+      const creds=()=>({email:body.querySelector('#acEm').value.trim().toLowerCase(),password:body.querySelector('#acPw').value});
+      body.querySelector('#acLin').onclick=async()=>{
+        const {email,password}=creds();
+        try{const j=await api('/api/auth',{method:'POST',body:JSON.stringify({action:'login',email,password})});
+          logIn(j.token,j.user);paintBtn();note('ok','Welcome back, '+(j.user.displayName||j.user.email)+'.');openOv('sync')}
+        catch(e){note('er',e.message)}};
+      body.querySelector('#acReg').onclick=async()=>{
+        const {email,password}=creds();
+        try{const j=await api('/api/auth',{method:'POST',body:JSON.stringify({action:'register',email,password,displayName:body.querySelector('#acDn').value.trim()})});
+          logIn(j.token,j.user);paintBtn();note('ok','Account created. You can now sync your workspace.');openOv('sync')}
+        catch(e){note('er',e.message)}};
+    }
+  }else if(tab==='sync'){
+    if(authed()){body.innerHTML=authed();return}
+    body.innerHTML=`${hh('Workspace sync')}
+      <div style="color:var(--tx2,#555);font-size:12px">Push your whole workspace (projects, chats, skills, providers, files) to Neon as a snapshot bound to your account and this device. Pull restores the latest snapshot and reloads the page.</div>
+      <div>Device&nbsp;<code>${Ce(deviceId)}</code>${cloudOn()?' · signed into <b>'+Ce(Cloud.email)+'</b>':''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${obtn('syPush','Push now',true)}${obtn('syPull','Pull (replaces local)')}<button id="syAuto" style="border:1px solid var(--line,#ddd);background:transparent;color:var(--tx,#111);border-radius:10px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600">${localStorage.getItem('fs.autoSync')==='1'?'Auto-sync ON':'Auto-sync OFF'}</button></div>
+      <div style="color:var(--tx3,#888);font-size:12px">Auto-sync silently pushes whenever you leave the page.</div>`;
+    body.querySelector('#syPush').onclick=()=>pushState(false);
+    body.querySelector('#syPull').onclick=async()=>{
+      try{
+        const j=await api('/api/state');
+        if(!j.payload){note('er','No snapshot stored yet — push first.');return}
+        if(j.payload.state)Cwr('fs.state',j.payload.state);
+        if(j.payload.prefs)Cwr('fs.prefs',j.payload.prefs);
+        note('ok','Snapshot restored — reloading…');setTimeout(()=>location.reload(),600);
+      }catch(e){note('er',e.message)}};
+    body.querySelector('#syAuto').onclick=()=>{
+      const on=localStorage.getItem('fs.autoSync')==='1';
+      localStorage.setItem('fs.autoSync',on?'0':'1');
+      note('ok','Auto-sync '+(on?'disabled':'enabled.'));openOv('sync')};
+  }else if(tab==='usage'){
+    if(authed()){body.innerHTML=authed();return}
+    body.innerHTML=`${hh('Usage · last 30 days')}<div id="usOut" style="color:var(--tx3,#888)">Loading…</div>`;
+    Promise.all([api('/api/usage'),api('/api/usage?detail=models')]).then(([agg,detail])=>{
+      const fmt=n=>n>=.01?('$'+n.toFixed(2)):('$'+Number(n).toFixed(5));
+      const rows=(detail.byModel||[]).slice(0,12).map(m=>`<tr><td style="padding:4px 6px">${Ce(m.provider)}</td><td style="padding:4px 6px"><code>${Ce(m.model)}</code></td><td style="padding:4px 6px;text-align:right">${m.calls}</td><td style="padding:4px 6px;text-align:right">${m.prompt_tokens}↑ ${m.completion_tokens}↓</td><td style="padding:4px 6px;text-align:right">${fmt(m.cost_usd)}</td></tr>`).join('');
+      body.querySelector('#usOut').innerHTML=`
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px">
+          <span><b>${agg.totals?.calls||0}</b> calls</span>
+          <span><b>${agg.totals?.promptTokens||0}</b> prompt tok</span>
+          <span><b>${agg.totals?.completionTokens||0}</b> completion tok</span>
+          <span><b>${fmt(agg.totals?.costUsd||0)}</b></span></div>
+        ${rows?`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--tx3,#888);text-align:left"><th style="padding:4px 6px">Provider</th><th style="padding:4px 6px">Model</th><th style="padding:4px 6px;text-align:right">Calls</th><th style="padding:4px 6px;text-align:right">Tokens</th><th style="padding:4px 6px;text-align:right">Cost</th></tr></thead><tbody>${rows}</tbody></table>`:'No usage recorded yet — send a chat message.'}`;
+    }).catch(e=>{body.querySelector('#usOut').textContent='Failed: '+e.message});
+  }else if(tab==='webhooks'){
+    if(authed()){body.innerHTML=authed();return}
+    body.innerHTML=`${hh('Inbound webhooks')}
+      <div style="color:var(--tx2,#555);font-size:12px">POST <code>{"prompt":"…"}</code> to <code>/api/webhook?key=YOUR_KEY</code> to queue an agent run for a project. Queue execution lands with the cron worker (next phase).</div>
+      ${field('Project ID','wbPid',(Crd('fs.state')||{}).activeProject||'')} ${field('Label','wbLbl','')}
+      <div>${obtn('wbNew','Create webhook',true)}</div>
+      <div id="wbList" style="color:var(--tx3,#888)">Loading…</div>`;
+    body.querySelector('#wbNew').onclick=async()=>{
+      try{
+        const j=await api('/api/webhook',{method:'PUT',body:JSON.stringify({projectId:body.querySelector('#wbPid').value.trim(),label:body.querySelector('#wbLbl').value.trim()})});
+        await copy(j.key);
+        note('ok','Webhook key created and copied to clipboard.');
+        openOv('webhooks');
+      }catch(e){note('er',e.message)}};
+    api('/api/webhook').then(j=>{
+      const list=j.webhooks||[];
+      body.querySelector('#wbList').innerHTML=list.length?
+        `<div style="font-size:12px"><b>${list.length}</b> webhook key(s)</div><table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">${list.map(w=>`<tr><td style="padding:4px 6px;font-family:var(--mono,monospace)">${Ce(String(w.key).slice(0,8))}…</td><td style="padding:4px 6px">${Ce(w.project_id)}</td><td style="padding:4px 6px;color:var(--tx3,#888)">${Ce(w.label||'')}</td></tr>`).join('')}</table>`
+        :'No webhooks yet.';
+    }).catch(e=>{body.querySelector('#wbList').textContent='Failed: '+e.message});
+  }else if(tab==='worker'){
+    const prefs=Crd('fs.prefs')||{};
+    body.innerHTML=`${hh('Cloudflare Worker gateway')}
+      <div style="color:var(--tx2,#555);font-size:12px">The deployed <code>forge-gateway</code> Worker proxies provider + MCP calls: fixes CORS, unlocks the Anthropic/Vertex adapters, rate-limits, and provides KV-backed <code>/sync</code>. Provider keys stay in this browser and are forwarded per request.</div>
+      ${field('Worker URL','wkUrl',prefs.workerUrl||'https://forge-gateway.legateakanjimusab.workers.dev')}
+      ${field('Forge token','wkTok',prefs.workerToken||'','password')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${obtn('wkSave','Save & reload',true)}${obtn('wkTest','Test')}${obtn('wkOff','Disable proxy')}</div>`;
+    const readVal=()=>({workerUrl:body.querySelector('#wkUrl').value.trim(),workerToken:body.querySelector('#wkTok').value.trim()});
+    body.querySelector('#wkSave').onclick=()=>{
+      const v=readVal();Cwr('fs.prefs',{...prefs,...v});
+      note('ok','Saved to prefs — reloading…');setTimeout(()=>location.reload(),600);};
+    body.querySelector('#wkTest').onclick=async()=>{
+      const v=readVal();if(!v.workerUrl)return note('er','Enter the Worker URL.');
+      try{const r=await origFetch(v.workerUrl+'/',{headers:{'x-forge-token':v.workerToken}});const j=await r.json();note(JSON.stringify(j).includes('gateway')?'ok':'er',JSON.stringify(j))}
+      catch(e){note('er',e.message)}};
+    body.querySelector('#wkOff').onclick=()=>{Cwr('fs.prefs',{...prefs,workerUrl:'',workerToken:''});note('ok','Proxy disabled — reloading…');setTimeout(()=>location.reload(),600)};
+  }
+}
+btn.onclick=()=>openOv('account');
+if(localStorage.getItem('fs.autoSync')==='1'&&cloudOn())pushState(true);
+onpageshow=paintBtn;
+</script>
 </body>
 </html>
