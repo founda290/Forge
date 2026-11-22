@@ -154,3 +154,11 @@ create table if not exists oauth_states (
   verifier   text,
   created_at timestamptz not null default now()
 );
+
+create table if not exists secrets (
+  user_id     uuid not null references users(id) on delete cascade,
+  skey        text not null,
+  sval_enc    text not null,
+  updated_at  timestamptz not null default now(),
+  primary key (user_id, skey)
+);

@@ -36,6 +36,8 @@ schema.sql              # Neon schema
 
 ## API
 
+The build ships a 116-service connector catalog (`lib/connectors-catalog.js`) across 7 categories (AI, dev, work, finance, media, comms, data + custom MCP). Any connected service is callable by the agent through `/api/connections/call` with server-side token injection and per-connector host allow-lists.
+
 All authenticated routes take `Authorization: Bearer <token>`; state routes take `x-forge-device: <id>`.
 
 | Route | Methods | Purpose |
@@ -44,6 +46,10 @@ All authenticated routes take `Authorization: Bearer <token>`; state routes take
 | `/api/state` | GET · PUT · DELETE | per-device workspace snapshot sync |
 | `/api/usage` | GET (30-day totals; `?detail=models`) · POST events | usage ledger |
 | `/api/webhook` | PUT create · GET list · POST `?key=` | inbound run queue + management |
+| `/api/vault` | GET · PUT · DELETE | AES-256-GCM encrypted key-value vault (nothing sensitive on the device) |
+| `/api/connections` | GET · POST token · DELETE `?provider=` | connector connections; tokens stored encrypted |
+| `/api/connections/call` | POST `{provider,url,method,headers,body}` | agent calls any connected service — host allow-listed, HTTPS-only |
+| `/api/connections/oauth/[provider]` | `?action=start` · `?action=callback` | OAuth 2.0 + PKCE flow for GitHub, Google, Notion, Figma |
 | `/api/health` | GET | liveness, `db:up` check |
 
 ## Worker gateway (`forge-gateway`)
