@@ -6,7 +6,7 @@ const num = (v) => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
 };
 
-export default async function handler(req) {
+async function handler(req) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   let user;
   try {
@@ -74,7 +74,7 @@ export default async function handler(req) {
 
   return bad("Method not allowed", 405);
 }
-
-export const GET = handler;
 export const POST = handler;
 export const OPTIONS = handler;
+
+export default { fetch: handler };

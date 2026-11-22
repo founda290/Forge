@@ -3,7 +3,7 @@ import { requireUser } from "./_auth.js";
 
 const MAX_BYTES = 2_000_000;
 
-export default async function handler(req) {
+async function handler(req) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   let user;
   try {
@@ -52,8 +52,8 @@ export default async function handler(req) {
 
   return bad("Method not allowed", 405);
 }
-
-export const GET = handler;
 export const PUT = handler;
 export const DELETE = handler;
 export const OPTIONS = handler;
+
+export default { fetch: handler };

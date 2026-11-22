@@ -43,5 +43,4 @@ const handler = async (req) => {
   return bad("Unknown action");
 }
 
-export const POST = handler;
-export default handler;
+export default { fetch: handler };

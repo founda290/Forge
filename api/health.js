@@ -1,6 +1,6 @@
 import { sql, json } from "./_db.js";
 
-export default async function handler() {
+async function handler() {
   const started = Date.now();
   const rows = await sql`select 1 as ping`;
   return json({
@@ -12,4 +12,4 @@ export default async function handler() {
   });
 }
 
-export const GET = handler;
+export default { fetch: handler };
