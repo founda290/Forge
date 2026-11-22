@@ -4,11 +4,11 @@ const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GE
   'Access-Control-Allow-Headers':'Content-Type,Authorization,x-forge-token,x-forge-provider,x-forge-base,x-forge-key,x-forge-adapter','Access-Control-Max-Age':'86400'};
 const json=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'Content-Type':'application/json',...CORS}});
 const hits=new Map();
-function limited(ip,max=180){const n=Date.now(),w=hits.get(ip)||{n:0,t:n};if(n-w.t>60000){w.n=0;w.t=n}w.n++;hits.set(ip,w);return w.n>max}
+function limited(ip,max=600){const n=Date.now(),w=hits.get(ip)||{n:0,t:n};if(n-w.t>60000){w.n=0;w.t=n}w.n++;hits.set(ip,w);return w.n>max}
 export default{async fetch(req,env){
   if(req.method==='OPTIONS')return new Response(null,{headers:CORS});
   const url=new URL(req.url),ip=req.headers.get('cf-connecting-ip')||'anon';
-  if(limited(ip))return json({error:'rate limited'},429);
+  if((url.pathname==='/v1/chat/completions'||url.pathname==='/fetch')&&limited(ip))return json({error:'rate limited'},429);
   if(env.FORGE_TOKEN&&(req.headers.get('x-forge-token')||'')!==env.FORGE_TOKEN)return json({error:'bad token'},401);
   try{
     if(url.pathname==='/v1/chat/completions'&&req.method==='POST'){

@@ -644,6 +644,10 @@ html[data-focus=on] .shell{grid-template-columns:minmax(0,1fr);padding-bottom:0}
           <button data-mode="auto" aria-pressed="true" title="Auto"><svg class="i s"><use href="#i-auto"/></svg><span>Auto</span></button>
           <button data-mode="think" aria-pressed="false" title="Thinking"><svg class="i s"><use href="#i-brain"/></svg><span>Think</span></button>
         </div>
+        <div class="seg" id="workSeg" role="group" aria-label="Work mode">
+          <button data-work="chat" aria-pressed="false" title="Chat — direct answers, no tools"><svg class="i s"><use href="#i-msg"/></svg><span>Chat</span></button>
+          <button data-work="agent" aria-pressed="true" title="Agent — full toolbelt, autonomous runs"><svg class="i s"><use href="#i-play"/></svg><span>Agent</span></button>
+        </div>
         <span class="state"><span class="dot" id="stDot"></span><span class="st" id="stText">Ready</span></span>
         <button class="btn q ic" id="btnTheme" title="Theme" aria-label="Theme"><svg class="i"><use id="themeIc" href="#i-moon"/></svg></button>
         <button class="btn q ic" id="btnPanel" title="Work panel" aria-label="Work panel"><svg class="i"><use href="#i-panel"/></svg></button>
@@ -770,11 +774,6 @@ const PROVIDERS=[
  {id:'deepinfra',n:'DeepInfra',c:'open',b:'https://api.deepinfra.com/v1/openai',k:'…',d:'https://deepinfra.com/dash/api_keys',unc:1,note:'Cheap open models.'},
  {id:'hyperbolic',n:'Hyperbolic',c:'open',b:'https://api.hyperbolic.xyz/v1',k:'…',d:'https://app.hyperbolic.xyz/settings',unc:1,note:'Open weights + GPUs.'},
  {id:'novita',n:'Novita AI',c:'open',b:'https://api.novita.ai/v3/openai',k:'sk-…',d:'https://novita.ai/settings/key-management',unc:1,note:'Large uncensored catalogue.'},
- {id:'featherless',n:'Featherless',c:'uncensored',b:'https://api.featherless.ai/v1',k:'fc-…',d:'https://featherless.ai/account',unc:1,note:'Thousands of finetunes.'},
- {id:'infermatic',n:'Infermatic',c:'uncensored',b:'https://apis.infermatic.ai/v1',k:'…',d:'https://infermatic.ai',unc:1,note:'RP-tuned open models.'},
- {id:'arli',n:'Arli AI',c:'uncensored',b:'https://api.arliai.com/v1',k:'…',d:'https://arliai.com',unc:1,free:1,note:'Uncensored, free tier.'},
- {id:'venice',n:'Venice AI',c:'uncensored',b:'https://api.venice.ai/api/v1',k:'…',d:'https://venice.ai/settings/api',unc:1,note:'Privacy-first, unfiltered.'},
- {id:'chutes',n:'Chutes',c:'uncensored',b:'https://llm.chutes.ai/v1',k:'cpk-…',d:'https://chutes.ai',unc:1,free:1,note:'Decentralised open models.'},
  {id:'kluster',n:'Kluster AI',c:'open',b:'https://api.kluster.ai/v1',k:'…',d:'https://kluster.ai',free:1,note:'Batch + realtime.'},
  {id:'nebius',n:'Nebius Studio',c:'open',b:'https://api.studio.nebius.ai/v1',k:'…',d:'https://studio.nebius.ai',note:'EU hosting.'},
  {id:'scaleway',n:'Scaleway AI',c:'cloud',b:'https://api.scaleway.ai/v1',k:'…',d:'https://console.scaleway.com',free:1,note:'EU sovereign.'},
@@ -819,21 +818,12 @@ const PROVIDERS=[
  {id:'baseten',n:'Baseten',c:'open',b:'https://bridge.baseten.co/v1',k:'…',d:'https://app.baseten.co',note:'Custom deployments.'},
  {id:'runpod',n:'RunPod Serverless',c:'open',b:'https://api.runpod.ai/v2/ENDPOINT_ID/openai/v1',k:'…',d:'https://runpod.io',unc:1,note:'Replace ENDPOINT_ID.'},
  {id:'modal',n:'Modal',c:'open',b:'https://YOUR-WORKSPACE--forge.modal.run/v1',k:'…',d:'https://modal.com',unc:1,note:'Your serverless endpoint.'},
- {id:'ollama',n:'Ollama (local)',c:'local',b:'http://localhost:11434/v1',k:'none',d:'https://ollama.com',free:1,unc:1,nokey:1,note:'OLLAMA_ORIGINS="*" ollama serve'},
- {id:'llamacpp',n:'llama.cpp (local)',c:'local',b:'http://localhost:8080/v1',k:'none',d:'https://github.com/ggml-org/llama.cpp',free:1,unc:1,nokey:1,note:'llama-server -m model.gguf'},
- {id:'lmstudio',n:'LM Studio (local)',c:'local',b:'http://localhost:1234/v1',k:'none',d:'https://lmstudio.ai',free:1,unc:1,nokey:1,note:'Enable local server.'},
- {id:'vllm',n:'vLLM (local)',c:'local',b:'http://localhost:8000/v1',k:'none',d:'https://docs.vllm.ai',free:1,unc:1,nokey:1,note:'Production self-host.'},
- {id:'jan',n:'Jan (local)',c:'local',b:'http://localhost:1337/v1',k:'none',d:'https://jan.ai',free:1,unc:1,nokey:1,note:'Offline desktop.'},
- {id:'kobold',n:'KoboldCpp (local)',c:'local',b:'http://localhost:5001/v1',k:'none',d:'https://github.com/LostRuins/koboldcpp',free:1,unc:1,nokey:1,note:'Uncensored local.'},
- {id:'tabby',n:'TabbyAPI (local)',c:'local',b:'http://localhost:5000/v1',k:'…',d:'https://github.com/theroyallab/tabbyAPI',free:1,unc:1,note:'ExLlamaV2.'},
- {id:'localai',n:'LocalAI (local)',c:'local',b:'http://localhost:8081/v1',k:'none',d:'https://localai.io',free:1,unc:1,nokey:1,note:'OpenAI replacement.'},
- {id:'gpt4all',n:'GPT4All (local)',c:'local',b:'http://localhost:4891/v1',k:'none',d:'https://gpt4all.io',free:1,unc:1,nokey:1,note:'Local API mode.'},
- {id:'custom',n:'Custom endpoint',c:'local',b:'',k:'…',d:'',unc:1,note:'Any OpenAI-compatible /v1.'}
+ {id:'custom',n:'Custom endpoint',c:'gateway',b:'',k:'…',d:'',unc:1,note:'Any OpenAI-compatible /v1.'}
 ];
 const CATS=[{id:'all',n:'All providers',i:'layers'},{id:'gateway',n:'Gateways',i:'cloud'},{id:'lab',n:'Frontier labs',i:'spark'},
  {id:'fast',n:'Fast inference',i:'zap'},{id:'open',n:'Open weights',i:'cpu'},{id:'china',n:'Asia labs',i:'globe'},
- {id:'cloud',n:'Enterprise cloud',i:'server'},{id:'router',n:'Routers & proxy',i:'branch'},{id:'uncensored',n:'Uncensored',i:'shield'},
- {id:'free',n:'Free tier',i:'star'},{id:'local',n:'Local runtimes',i:'term'},{id:'connected',n:'Configured',i:'check'}];
+ {id:'cloud',n:'Enterprise cloud',i:'server'},{id:'router',n:'Routers & proxy',i:'branch'},
+ {id:'free',n:'Free tier',i:'star'},{id:'connected',n:'Configured',i:'check'}];
 const provById=id=>PROVIDERS.find(p=>p.id===id);
 
 /* ══ CONNECTOR DIRECTORY — URL only, real remote MCP endpoints ══ */
@@ -877,8 +867,6 @@ const DIRECTORY=[
  {n:'Stripe',u:'https://mcp.stripe.com',c:'payments',i:'cart',auth:'oauth',d:'Payments, customers and invoices.'},
  {n:'PayPal',u:'https://mcp.paypal.com/mcp',c:'payments',i:'cart',auth:'oauth',d:'Orders and payouts.'},
  {n:'Square',u:'https://mcp.squareup.com/sse',c:'payments',i:'cart',auth:'oauth',d:'Catalog, orders and payments.'},
- {n:'Local MCP bridge',u:'http://localhost:3000/mcp',c:'local',i:'term',auth:'public',d:'Your own stdio→HTTP bridge.'},
- {n:'Playwright MCP (local)',u:'http://localhost:8931/mcp',c:'local',i:'browser',auth:'public',d:'Browser automation on your machine.'},
  {n:'Custom endpoint',u:'',c:'local',i:'link',auth:'public',d:'Paste any MCP URL you run.'}
 ];
 const DIR_CATS=[{id:'all',n:'All endpoints',i:'layers'},{id:'cloudflare',n:'Cloudflare',i:'cloud'},{id:'dev',n:'Dev & code',i:'branch'},
@@ -887,7 +875,7 @@ const DIR_CATS=[{id:'all',n:'All endpoints',i:'layers'},{id:'cloudflare',n:'Clou
 
 /* ══ STATE ══ */
 const SYS_DEFAULT='You are Forge, a senior engineering agent working inside a project. Use tools aggressively when they help; verify before asserting. Give complete runnable code in fenced blocks with language tags — never truncate a file you start. State root cause before fix. Be direct, no filler.';
-const DEF_PREF={theme:'light',accent:'pine',density:'cozy',panel:'closed',panelTab:'run',mode:'auto',tts:false,voice:'',rate:1,pitch:1,
+const DEF_PREF={theme:'light',accent:'pine',density:'cozy',panel:'closed',panelTab:'run',mode:'auto',workMode:'agent',tts:false,voice:'',rate:1,pitch:1,
   autoSpeak:false,stream:true,maxTok:0,hist:30,temp:.6,toolLoops:8,workerUrl:'',workerToken:'',sort:'recent',starOnly:false,allProjects:false,
   focus:false,autoApprove:true,consoleOpen:false,consoleTab:'term'};
 let PF={...DEF_PREF,...rd(LS.p,{})};
@@ -896,7 +884,7 @@ const DEF_STATE=()=>({
   projects:[{id:uid(),name:'Studio',color:'#1F5E52',desc:'Default workspace',createdAt:Date.now(),
     agent:{persona:SYS_DEFAULT,mode:'auto',autonomy:'auto',knowledge:'',off:{tools:[],connectors:[],skills:[]}}}],
   activeProject:'',chats:[],activeChat:'',skills:[],subagents:[],connectors:[],files:[],snippets:[],tasks:[],
-  boards:[],sketches:[],runs:[],keys:{},activeProvider:'openrouter',activeModel:'',modelsCache:{},uncKey:'',uncProvider:'',freeOnly:false
+  boards:[],sketches:[],runs:[],keys:{},activeProvider:'openrouter',activeModel:'',modelsCache:{},freeOnly:false
 });
 let S=rd(LS.s,null);
 if(!S||!S.projects||!S.projects.length){S=DEF_STATE();S.activeProject=S.projects[0].id;wr(LS.s,S)}
@@ -1071,7 +1059,7 @@ function chatEndpoint(){
   const g=gateway();
   if(workerOn())return {url:PF.workerUrl.replace(/\/+$/,'')+'/v1/chat/completions',headers:{'Content-Type':'application/json','x-forge-token':PF.workerToken||'','x-forge-provider':g.p.id,'x-forge-base':g.base,'x-forge-key':g.key,'x-forge-adapter':g.p.adapter||''}};
   return {url:g.base+'/chat/completions',headers:{'Content-Type':'application/json',...(g.key?{Authorization:'Bearer '+g.key}:{}),
-    ...(g.p.id==='openrouter'?{'HTTP-Referer':location.origin.startsWith('http')?location.origin:'https://forge.studio','X-Title':'Forge Studio'}:{})}};
+    ...(g.p.id==='openrouter'?{'HTTP-Referer':location.origin,'X-Title':'Forge Studio'}:{})}};
 }
 async function proxyFetch(url,opts={}){
   if(workerOn()){
@@ -1086,7 +1074,7 @@ async function listModels(pid){
   const cfg=S.keys['__cfg_'+pid]||{},base=(cfg.base||p.b||'').replace(/\/+$/,'');
   if(!base)return [];
   const key=p.nokey?'':keyOf(pid),cache=S.modelsCache[pid];
-  if(cache&&Date.now()-cache.ts<36e5&&cache.list.length)return cache.list;
+  if(cache&&Date.now()-cache.ts<(cache.fail?9e5:36e5)&&(cache.list.length||cache.fail))return cache.list;
   let raw=[];
   try{
     let r;
@@ -1095,7 +1083,7 @@ async function listModels(pid){
       const h={};if(key)h.Authorization='Bearer '+key;r=await fetch(base+'/models',{headers:h,signal:AbortSignal.timeout(20000)})}
     if(!r.ok)throw new Error('HTTP '+r.status);
     const j=await r.json();raw=j.data||j.models||[];
-  }catch(e){if(cache)return cache.list;throw e}
+  }catch(e){if(cache)return cache.list;S.modelsCache[pid]={ts:Date.now(),list:[],fail:1};saveS();throw e}
   let list=raw.map(m=>{const pr=m.pricing||{};
     return {id:m.id||m.name,name:m.name||m.id,ctx:m.context_length||m.max_context_length||0,
       free:['prompt','completion','request','image'].every(k=>!pr[k]||parseFloat(pr[k])===0),
@@ -1163,6 +1151,8 @@ const projectFiles=()=>S.files.filter(f=>f.projectId===S.activeProject);
 const activeSkills=()=>S.skills.filter(s=>s.enabled&&!off().skills.includes(s.id));
 const liveConnectors=()=>S.connectors.filter(c=>c.status==='online'&&!off().connectors.includes(c.id));
 const BUILTINS=[
+ ['http_request','Raw HTTP request (like curl): any method, custom headers, body. Returns status code and response text.','globe',{type:'object',properties:{url:{type:'string'},method:{type:'string'},headers:{type:'object'},body:{type:'string'},max_chars:{type:'number'}},required:['url']}],
+ ['download_file','Download a file from any URL into the project workspace so it can be read or searched later.','download',{type:'object',properties:{url:{type:'string'},name:{type:'string'}},required:['url']}],
  ['web_fetch','Fetch a URL and return readable text.','globe',{type:'object',properties:{url:{type:'string'},max_chars:{type:'number'}},required:['url']}],
  ['run_js','Execute JavaScript in a sandbox and return output.','code',{type:'object',properties:{code:{type:'string'}},required:['code']}],
  ['list_files','List files stored in this project.','file',{type:'object',properties:{}}],
@@ -1204,7 +1194,15 @@ async function execTool(name,args){
   const t0=performance.now();
   try{
     let out='';
-    if(name==='web_fetch'){const r=await proxyFetch(args.url,{method:'GET'});const txt=await r.text();
+    if(name==='http_request'){const r=await proxyFetch(args.url,{method:(args.method||'GET').toUpperCase(),headers:args.headers||{},body:args.body||undefined});
+      const txt=await r.text();out='HTTP '+r.status+'\n'+txt.slice(0,args.max_chars||8000)}
+    else if(name==='download_file'){const r=await proxyFetch(args.url,{method:'GET'});if(!r.ok)throw new Error('HTTP '+r.status);
+      const txt=await r.text();const nm=String(args.name||new URL(args.url).pathname.split('/').pop()||'download.bin');
+      if(nm.includes('/')||nm.includes('..'))throw new Error('Bad file name: '+nm);
+      if(S.files.some(f=>f.projectId===S.activeProject&&f.name===nm))throw new Error('File already exists: '+nm);
+      S.files.push({id:uid(),projectId:S.activeProject,name:nm,type:'text',content:txt,size:txt.length,createdAt:Date.now()});saveS();renderConsole();
+      out='Downloaded '+nm+' ('+bytes(txt.length)+')'}
+    else if(name==='web_fetch'){const r=await proxyFetch(args.url,{method:'GET'});const txt=await r.text();
       out=txt.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,args.max_chars||6000)}
     else if(name==='run_js')out=await runJS(String(args.code||''));
     else if(name==='list_files')out=projectFiles().map(f=>`${f.name} · ${bytes(f.size)}`).join('\n')||'(no files)';
@@ -1239,6 +1237,11 @@ async function execTool(name,args){
 }
 
 /* ══ STREAM ══ */
+const workSys=(w)=>w==='chat'
+  ?'Chat mode: answer directly and conversationally in plain text. Use no tools.'
+  :w==='agent'
+  ?'Agent mode: work autonomously until the task is complete. Plan briefly, then act - run code in the sandbox, curl or download URLs, read and write project files, call connectors or spawn subagents as needed. Verify results and finish with a compact summary of what you did and what it produced.'
+  :'';
 function modeParams(m){
   if(m==='fast')return {temperature:.3,reasoning:null,sys:'Answer immediately and concisely. No preamble.'};
   if(m==='think')return {temperature:.6,reasoning:{effort:'high'},sys:'Think step by step before answering. Consider edge cases, then give the verified result.'};
@@ -1378,13 +1381,14 @@ function layout(){
 async function agentLoop(c,m,{depth=0,extraSys=''}={}){
   const t0=performance.now();
   m.pending=true;m.error='';m.needs='';m.stopped=false;m.truncated=false;m.segments=m.segments||[];
-  m.model=S.activeModel;m.mode=proj().agent.mode||PF.mode;m.toolCount=0;
+  m.model=S.activeModel;m.mode=proj().agent.mode||PF.mode;m.work=PF.workMode||'agent';m.toolCount=0;
   if(!nodeOf(m.id))thread.appendChild(msgNode(m,c));else repaint(m,c);
   toEnd(true);
   const st={cid:c.id,ac:new AbortController(),stopped:false,usage:null,raf:0};
   if(depth===0){live=st;turnSteps=[];paintSend();paintState();paintAgentbar()}
-  const tools=depth>0?[]:toolSpecs(),maxLoops=depth>0?1:PF.toolLoops;
-  let msgs=toApi(c);if(extraSys)msgs[0]={role:'system',content:msgs[0].content+'\n\n'+extraSys};
+  const tools=m.work==='chat'?[]:(depth>0?[]:toolSpecs()),maxLoops=(m.work==='chat'||depth>0)?1:PF.toolLoops;
+  let msgs=toApi(c);const ws=workSys(m.work);if(extraSys)msgs[0]={role:'system',content:msgs[0].content+'\n\n'+extraSys};
+  if(ws)msgs[0]={role:'system',content:msgs[0].content+'\n\n'+ws};
   let textSeg=null,reasonSeg=null;
   const flush=()=>{st.raf=0;const el=nodeOf(m.id);if(!el)return;
     el.querySelector('.abody').innerHTML=m.segments.map(segHTML).join('')+'<span class="caret"></span>';
@@ -1625,6 +1629,10 @@ async function termExec(cmd,silent=false){
     switch(c){
       case 'help':out=['Forge terminal','  help                    this list','  ls / cat / write / rm   project files',
         '  echo <text>             print','  js <code>               sandboxed JavaScript','  http <url>              fetch (worker aware)',
+        '  curl <url> [> file]     raw HTTP request, optional save to project file',
+        '  wget <url>              download a URL into project files',
+        '  install <package>       pull an npm/ESM package via esm.sh',
+        '  git get <owner/repo> <path> [branch]   pull a raw file from GitHub',
         '  con                     list connectors','  con add <url>           connect an MCP URL',
         '  con call <name> <tool> {json}','  con on|off <name>       enable / disable connector',
         '  skill / skill run <name> <input>','  agent / agent run <name> <task>',
@@ -1640,6 +1648,26 @@ async function termExec(cmd,silent=false){
       case 'echo':out=arg;break;
       case 'js':out=await runJS(arg);break;
       case 'http':{const r=await proxyFetch(arg);out=(await r.text()).slice(0,4000);cls='ok';break}
+      case 'curl':{const mm=arg.match(/^(.*?)\s*>\s*(\S+)$/);const u=(mm?mm[1]:arg).trim();
+        const r=await proxyFetch(u);const t=await r.text();if(!r.ok){out='HTTP '+r.status+' '+t.slice(0,200);cls='err';break}
+        if(mm){S.files.push({id:uid(),projectId:S.activeProject,name:mm[2],type:'text',content:t,size:t.length,createdAt:Date.now()});saveS();out='saved '+mm[2]+' ('+bytes(t.length)+')'}
+        else out='HTTP '+r.status+'\n'+t.slice(0,4000);
+        cls='ok';break}
+      case 'wget':{const u=arg.trim();if(!u){out='usage: wget <url>';cls='err';break}
+        const r=await proxyFetch(u);if(!r.ok){out='HTTP '+r.status;cls='err';break}
+        const t=await r.text(),n=decodeURIComponent(new URL(u).pathname.split('/').pop()||'download.bin');
+        S.files.push({id:uid(),projectId:S.activeProject,name:n,type:'text',content:t,size:t.length,createdAt:Date.now()});saveS();
+        out='saved '+n+' ('+bytes(t.length)+')';cls='ok';break}
+      case 'install':{if(!arg){out='usage: install <npm-package>';cls='err';break}
+        const mod=await import('https://esm.sh/'+arg);
+        out='installed '+arg+' \u00b7 exports: '+(Object.keys(mod).slice(0,30).join(', ')||'(module loaded)');cls='ok';break}
+      case 'git':{if(rest[0]==='get'&&rest[1]&&rest[2]){const u='https://raw.githubusercontent.com/'+rest[1]+'/'+(rest[3]||'main')+'/'+rest[2];
+          const r=await proxyFetch(u);if(!r.ok){out='HTTP '+r.status+' for '+u;cls='err';break}
+          const t=await r.text(),n=rest[2].split('/').pop();
+          S.files.push({id:uid(),projectId:S.activeProject,name:n,type:'text',content:t,size:t.length,createdAt:Date.now()});saveS();
+          out='pulled '+rest[1]+'/'+rest[2]+' ('+n+', '+bytes(t.length)+')';cls='ok'}
+        else{out='git get <owner/repo> <path> [branch] \u2014 pulls a raw file from GitHub into project files'}
+        break}
       case 'con':{
         if(rest[0]==='add'){const url=rest[1];if(!url){out='usage: con add <url>';cls='err';break}
           const d=DIRECTORY.find(x=>x.u===url);
@@ -2209,7 +2237,7 @@ function openProviders(tab='all'){
   const m=modal({title:'Gateways & keys',icon:'key',size:'full',flush:true,tag:'<span class="beta">BYOK beta</span>',
     body:`<div class="split"><div class="split-l" id="cats"></div><div class="split-r" id="pane"></div></div>`,
     foot:`<span>${PROVIDERS.length} providers · keys stay in this browser</span><span class="sp"></span>
-      <button class="btn sm" id="wCfg">${I('worker')}Worker proxy</button><button class="btn sm" id="uncBtn">${I('shield')}Uncensored lane</button><button class="btn p sm" id="doneBtn">${I('check')}Done</button>`});
+      <button class="btn sm" id="wCfg">${I('worker')}Worker proxy</button><button class="btn p sm" id="doneBtn">${I('check')}Done</button>`});
   const cats=m.el.querySelector('#cats'),pane=m.el.querySelector('#pane');
   const counts=c=>c==='all'?PROVIDERS.length:c==='free'?PROVIDERS.filter(p=>p.free).length:c==='uncensored'?PROVIDERS.filter(p=>p.unc).length:
     c==='connected'?PROVIDERS.filter(p=>keyOf(p.id)||S.keys['__cfg_'+p.id]).length:PROVIDERS.filter(p=>p.c===c).length;
@@ -2273,26 +2301,7 @@ function openProviders(tab='all'){
     const cache=S.modelsCache[p.id];if(cache)renderModels(cache.list);
   }
   paintCats();paintPane();
-  m.el.querySelector('#wCfg').onclick=openWorker;m.el.querySelector('#uncBtn').onclick=openUncensored;m.el.querySelector('#doneBtn').onclick=()=>m.close();
-}
-function openUncensored(){
-  const list=PROVIDERS.filter(p=>p.unc);
-  const m=modal({title:'Uncensored lane',icon:'shield',size:'lg',tag:'<span class="beta">beta</span>',
-    body:`<div class="note wa">${I('alert')}<span>Open-weight providers with minimal filtering. You are responsible for usage. Keys never leave this browser except to the provider you call.</span></div>
-      <div class="field"><label class="lbl">Provider</label><div id="uSel"></div></div>
-      <div class="field"><label class="lbl">API key</label><input type="password" id="uKey" value="${esc(S.uncKey||'')}"/></div>
-      <div class="field"><label class="lbl">Preferred model id</label><input type="text" id="uModel" value="${esc(S.keys.__uncModel||'')}"/></div>
-      <div class="line"><button class="btn p" id="uSave">${I('check')}Save lane</button><button class="btn" id="uUse">${I('play')}Activate</button></div>
-      <div class="card"><b>${I('shield')}Uncensored-capable providers (${list.length})</b><div class="scroll-list" style="max-height:220px;overflow:auto">
-      ${list.map(p=>`<div class="item"><div class="im"><b>${esc(p.n)}</b><small class="mono">${esc(p.b||'custom')}</small></div>${p.free?'<span class="tag ok">free</span>':''}${keyOf(p.id)?'<span class="tag ac">key set</span>':''}</div>`).join('')}</div></div>`,
-    foot:`<span class="sp"></span><button class="btn" data-cl>Close</button>`});
-  mountSelect(m.el.querySelector('#uSel'),{value:S.uncProvider||'venice',options:list.map(p=>({v:p.id,n:p.n,h:p.free?'free':''})),search:true,onChange:v=>S.uncProvider=v});
-  m.el.querySelector('#uSave').onclick=()=>{S.uncKey=m.el.querySelector('#uKey').value.trim();S.keys.__uncModel=m.el.querySelector('#uModel').value.trim();
-    if(S.uncProvider&&S.uncKey)setKey(S.uncProvider,S.uncKey,true);saveS();paintFoot();toast('Lane saved.',{type:'ok'})};
-  m.el.querySelector('#uUse').onclick=()=>{if(!S.uncProvider){toast('Pick a provider.',{type:'wa'});return}
-    S.activeProvider=S.uncProvider;if(S.keys.__uncModel)S.activeModel=S.keys.__uncModel;
-    saveS();paintChip();paintState();paintFoot();paintHero();m.close();toast('Uncensored lane active.',{type:'ok'})};
-  m.el.querySelector('[data-cl]').onclick=()=>m.close();
+  m.el.querySelector('#wCfg').onclick=openWorker;m.el.querySelector('#doneBtn').onclick=()=>m.close();
 }
 function openModelPicker(){
   const m=modal({title:'Model & gateway',icon:'cpu',size:'lg',
@@ -2557,97 +2566,23 @@ function openVisuals(){
   }
   paint();
 }
-const WORKER_JS=[
-"// Forge Studio · Cloudflare Worker gateway",
-"// npx wrangler deploy   ·   npx wrangler secret put FORGE_TOKEN",
-"const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS',",
-"  'Access-Control-Allow-Headers':'Content-Type,Authorization,x-forge-token,x-forge-provider,x-forge-base,x-forge-key,x-forge-adapter','Access-Control-Max-Age':'86400'};",
-"const json=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'Content-Type':'application/json',...CORS}});",
-"const hits=new Map();",
-"function limited(ip,max=180){const n=Date.now(),w=hits.get(ip)||{n:0,t:n};if(n-w.t>60000){w.n=0;w.t=n}w.n++;hits.set(ip,w);return w.n>max}",
-"export default{async fetch(req,env){",
-"  if(req.method==='OPTIONS')return new Response(null,{headers:CORS});",
-"  const url=new URL(req.url),ip=req.headers.get('cf-connecting-ip')||'anon';",
-"  if(limited(ip))return json({error:'rate limited'},429);",
-"  if(env.FORGE_TOKEN&&(req.headers.get('x-forge-token')||'')!==env.FORGE_TOKEN)return json({error:'bad token'},401);",
-"  try{",
-"    if(url.pathname==='/v1/chat/completions'&&req.method==='POST'){",
-"      const base=(req.headers.get('x-forge-base')||'').replace(/\\/+$/,''),key=req.headers.get('x-forge-key')||'',adapter=req.headers.get('x-forge-adapter')||'';",
-"      const body=await req.json();if(!base)return json({error:'missing base'},400);",
-"      if(adapter==='anthropic'){",
-"        const sys=body.messages.filter(m=>m.role==='system').map(m=>m.content).join('\\n');",
-"        const msgs=body.messages.filter(m=>m.role!=='system').map(m=>({role:m.role==='tool'?'user':m.role,content:typeof m.content==='string'?m.content:JSON.stringify(m.content)}));",
-"        const r=await fetch(base+'/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},",
-"          body:JSON.stringify({model:body.model,system:sys,messages:msgs,max_tokens:body.max_tokens||4096,stream:!!body.stream})});",
-"        if(!body.stream){const j=await r.json();return json({choices:[{message:{role:'assistant',content:(j.content||[]).map(c=>c.text||'').join('')},finish_reason:j.stop_reason||'stop'}]})}",
-"        const {readable,writable}=new TransformStream();const w=writable.getWriter(),enc=new TextEncoder();",
-"        (async()=>{const rd=r.body.getReader(),dec=new TextDecoder();let buf='';",
-"          while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;",
-"            while((i=buf.indexOf('\\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);if(!line.startsWith('data:'))continue;",
-"              try{const ev=JSON.parse(line.slice(5));",
-"                if(ev.type==='content_block_delta'&&ev.delta?.text)await w.write(enc.encode('data: '+JSON.stringify({choices:[{delta:{content:ev.delta.text}}]})+'\\n\\n'));",
-"                if(ev.type==='message_stop')await w.write(enc.encode('data: [DONE]\\n\\n'));}catch{}}}",
-"          await w.close()})();",
-"        return new Response(readable,{headers:{'Content-Type':'text/event-stream','Cache-Control':'no-cache',...CORS}});}",
-"      const h={'Content-Type':'application/json'};if(key)h.Authorization='Bearer '+key;",
-"      const up=await fetch(base+'/chat/completions',{method:'POST',headers:h,body:JSON.stringify(body)});",
-"      return new Response(up.body,{status:up.status,headers:{'Content-Type':up.headers.get('content-type')||'application/json','Cache-Control':'no-cache',...CORS}});}",
-"    if(url.pathname==='/models'&&req.method==='POST'){const{base,key}=await req.json();const h={};if(key)h.Authorization='Bearer '+key;",
-"      const r=await fetch(base.replace(/\\/+$/,'')+'/models',{headers:h});return new Response(await r.text(),{status:r.status,headers:{'Content-Type':'application/json',...CORS}})}",
-"    if(url.pathname==='/mcp'&&req.method==='POST'){const{url:t,payload,headers}=await req.json();",
-"      const r=await fetch(t,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream',...(headers||{})},body:JSON.stringify(payload)});",
-"      const out=new Response(r.body,{status:r.status,headers:{'Content-Type':r.headers.get('content-type')||'application/json',...CORS}});",
-"      const sid=r.headers.get('mcp-session-id');if(sid)out.headers.set('Mcp-Session-Id',sid);return out}",
-"    if(url.pathname==='/fetch'&&req.method==='POST'){const{url:t,method,headers,body}=await req.json();",
-"      const r=await fetch(t,{method:method||'GET',headers:headers||{},body:body||undefined});",
-"      return new Response(r.body,{status:r.status,headers:{'Content-Type':r.headers.get('content-type')||'text/plain',...CORS}})}",
-"    if(url.pathname==='/exec'&&req.method==='POST'){const{command}=await req.json();const allow=['time','uuid','sha256','base64','ip'];",
-"      const[cmd,...rest]=String(command||'').split(' ');if(!allow.includes(cmd))return json({error:'not allowed',allow},400);",
-"      let out='';if(cmd==='time')out=new Date().toISOString();if(cmd==='uuid')out=crypto.randomUUID();if(cmd==='ip')out=ip;if(cmd==='base64')out=btoa(rest.join(' '));",
-"      if(cmd==='sha256'){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(rest.join(' ')));out=[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}",
-"      return json({out})}",
-"    if(url.pathname.startsWith('/sync')){if(!env.FORGE_KV)return json({error:'bind FORGE_KV'},400);",
-"      const id=url.searchParams.get('id')||'default';",
-"      if(req.method==='GET')return json(JSON.parse((await env.FORGE_KV.get('ws:'+id))||'null'));",
-"      const b=await req.text();await env.FORGE_KV.put('ws:'+id,b);return json({ok:true,bytes:b.length})}",
-"    if(url.pathname==='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync']});",
-"    return json({error:'not found'},404);",
-"  }catch(e){return json({error:String(e&&e.message||e)},500)}}};"
-].join('\n');
-const WRANGLER=['name = "forge-gateway"','main = "worker.js"','compatibility_date = "2025-01-01"','','# npx wrangler secret put FORGE_TOKEN','','[[kv_namespaces]]','binding = "FORGE_KV"','id = "your-kv-id"'].join('\n');
+
+
 function openWorker(){
-  const m=modal({title:'Cloudflare Worker gateway',icon:'worker',size:'xl',
-    tabs:[{id:'cfg',n:'Connection',i:'gear'},{id:'code',n:'worker.js',i:'code'},{id:'toml',n:'wrangler.toml',i:'file'}],
-    body:`<div id="wBody"></div>`,foot:`<span>One deploy removes every CORS problem for providers and MCP URLs.</span><span class="sp"></span><button class="btn p" id="wSave">${I('check')}Save</button>`});
-  const box=m.el.querySelector('#wBody');let tab='cfg';
-  const paint=()=>{
-    if(tab==='cfg'){
-      box.innerHTML=`<div class="note in">${I('info')}<span>Keys are forwarded per request from this browser. Set <code>FORGE_TOKEN</code> as a secret so only your app can use the gateway.</span></div>
-        <div class="field"><label class="lbl">Worker URL</label><input type="text" id="wUrl" value="${esc(PF.workerUrl)}" placeholder="https://forge-gateway.you.workers.dev"/></div>
-        <div class="field"><label class="lbl">Forge token</label><input type="password" id="wTok" value="${esc(PF.workerToken)}"/></div>
-        <div class="line"><button class="btn p" id="wTest">${I('refresh')}Test</button><button class="btn" id="wOff">Disable proxy</button></div><div id="wNote"></div>
-        <div class="card"><b>${I('term')}Deploy</b><div class="codeview"><pre>${esc('npm i -g wrangler\nwrangler login\nwrangler deploy')}</pre></div></div>`;
-      box.querySelector('#wTest').onclick=async()=>{const u=box.querySelector('#wUrl').value.trim().replace(/\/+$/,'');
-        if(!u){toast('Enter the Worker URL.',{type:'wa'});return}
-        try{const r=await fetch(u+'/',{headers:{'x-forge-token':box.querySelector('#wTok').value.trim()},signal:AbortSignal.timeout(10000)});
-          box.querySelector('#wNote').innerHTML=`<div class="note ok">${I('check')}<span>${esc(JSON.stringify(await r.json()))}</span></div>`}
-        catch(e){box.querySelector('#wNote').innerHTML=`<div class="note er">${I('alert')}<span>${esc(e.message)}</span></div>`}};
-      box.querySelector('#wOff').onclick=()=>{PF.workerUrl='';PF.workerToken='';savePF();box.querySelector('#wUrl').value='';box.querySelector('#wTok').value='';paintState();toast('Direct mode restored.',{type:'ok'})};
-    }else if(tab==='code'){
-      box.innerHTML=`<div class="line"><button class="btn p sm" id="wDl">${I('download')}worker.js</button><button class="btn sm" id="wCp">${I('copy')}Copy</button></div>
-        <div class="codeview" style="max-height:56dvh"><pre>${esc(WORKER_JS)}</pre></div>`;
-      box.querySelector('#wDl').onclick=()=>dl('worker.js',WORKER_JS,'text/javascript');
-      box.querySelector('#wCp').onclick=async()=>{if(await clip(WORKER_JS))toast('Copied.',{type:'ok'})};
-    }else{
-      box.innerHTML=`<div class="line"><button class="btn p sm" id="tDl">${I('download')}wrangler.toml</button><button class="btn sm" id="tCp">${I('copy')}Copy</button></div><div class="codeview"><pre>${esc(WRANGLER)}</pre></div>`;
-      box.querySelector('#tDl').onclick=()=>dl('wrangler.toml',WRANGLER);
-      box.querySelector('#tCp').onclick=async()=>{if(await clip(WRANGLER))toast('Copied.',{type:'ok'})};
-    }
-  };
-  m.onTab=t=>{if(tab==='cfg'){PF.workerUrl=box.querySelector('#wUrl').value.trim();PF.workerToken=box.querySelector('#wTok').value.trim();savePF()}tab=t;paint()};
-  m.el.querySelector('#wSave').onclick=()=>{if(tab==='cfg'){PF.workerUrl=box.querySelector('#wUrl').value.trim();PF.workerToken=box.querySelector('#wTok').value.trim()}
-    savePF();paintState();paintFoot();m.close();toast(workerOn()?'Worker proxy active.':'Saved.',{type:'ok'})};
-  paint();
+  const m=modal({title:'Forge gateway',icon:'worker',size:'lg',
+    body:`<div class="note in">${I('info')}<span>Route provider and MCP calls through your Cloudflare Worker gateway. Keys never leave this browser — provider calls are proxied server-side. Set <code>FORGE_TOKEN</code> on the Worker so only this app can use it.</span></div>
+      <div class="field"><label class="lbl">Gateway URL</label><input type="text" id="wUrl" value="${esc(PF.workerUrl||'https://forge-gateway.legateakanjimusab.workers.dev')}"/></div>
+      <div class="field"><label class="lbl">Forge token</label><input type="password" id="wTok" value="${esc(PF.workerToken)}"/></div>
+      <div class="line"><button class="btn p" id="wTest">${I('refresh')}Test connection</button><button class="btn" id="wOff">Use direct mode</button></div><div id="wNote"></div>`,
+    foot:`<span></span><span class="sp"></span><button class="btn p" id="wSave">${I('check')}Save</button>`});
+  m.el.querySelector('#wTest').onclick=async()=>{const u=m.el.querySelector('#wUrl').value.trim().replace(/\/+$/,'');
+    if(!u){toast('Enter the gateway URL.',{type:'wa'});return}
+    try{const r=await fetch(u+'/',{headers:{'x-forge-token':m.el.querySelector('#wTok').value.trim()},signal:AbortSignal.timeout(10000)});
+      m.el.querySelector('#wNote').innerHTML=`<div class="note ok">${I('check')}<span>${esc(JSON.stringify(await r.json()))}</span></div>`}
+    catch(e){m.el.querySelector('#wNote').innerHTML=`<div class="note er">${I('alert')}<span>${esc(e.message)}</span></div>`}};
+  m.el.querySelector('#wOff').onclick=()=>{PF.workerUrl='';PF.workerToken='';savePF();m.el.querySelector('#wUrl').value='';m.el.querySelector('#wTok').value='';paintState();toast('Direct mode restored.',{type:'ok'})};
+  m.el.querySelector('#wSave').onclick=()=>{PF.workerUrl=m.el.querySelector('#wUrl').value.trim();PF.workerToken=m.el.querySelector('#wTok').value.trim();
+    savePF();paintState();paintFoot();m.close();toast(workerOn()?'Gateway active.':'Saved.',{type:'ok'})};
 }
 function openSettings(){
   const m=modal({title:'Settings',icon:'gear',size:'lg',
@@ -2733,7 +2668,6 @@ const COMMANDS=[
  {n:'Connected endpoints',i:'check',f:()=>openConnectors('connected')},
  {n:'Model & gateway',i:'cpu',k:'Ctrl+M',f:openModelPicker},
  {n:'Gateways & keys',i:'key',f:()=>openProviders()},
- {n:'Uncensored lane',i:'shield',f:openUncensored},
  {n:'Projects',i:'folder',f:openProjects},
  {n:'Agent configuration',i:'agent',f:openAgents},
  {n:'Skills',i:'skill',f:openSkills},
@@ -2749,6 +2683,8 @@ const COMMANDS=[
  {n:'Mode: Fast',i:'zap',f:()=>setMode('fast')},
  {n:'Mode: Auto',i:'auto',f:()=>setMode('auto')},
  {n:'Mode: Thinking',i:'brain',f:()=>setMode('think')},
+ {n:'Work: Chat',i:'msg',f:()=>setWork('chat')},
+ {n:'Work: Agent',i:'play',f:()=>setWork('agent')},
  {n:'Attach image or file',i:'clip',f:()=>$('#filePick').click()},
  {n:'Voice input',i:'mic',f:()=>$('#btnMic').click()},
  {n:'Speak last reply',i:'vol',f:()=>{const m=chat()?.messages.filter(x=>x.role==='assistant').at(-1);if(m)speak((m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n'))}},
@@ -2782,6 +2718,9 @@ function showShortcuts(){
 function setMode(m){proj().agent.mode=m;PF.mode=m;saveS();savePF();
   $$('#modeSeg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));toast('Mode: '+m,{type:'in',timeout:1500})}
 $('#modeSeg').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b)setMode(b.dataset.mode)});
+function setWork(w){PF.workMode=w;savePF();$('#workSeg [data-work]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.work===w)));
+  toast(w==='chat'?'Chat mode — direct answers, no tools.':'Agent mode — full toolbelt, autonomous runs.',{type:'in',timeout:2600})}
+$('#workSeg').addEventListener('click',e=>{const b=e.target.closest('[data-work]');if(b)setWork(b.dataset.work)});
 function navTo(v){
   $$('.rbtn').forEach(b=>b.classList.toggle('on',b.dataset.nav===v));
   if(v==='chats'){openSidebar();return}
@@ -2820,11 +2759,16 @@ window.addEventListener('error',e=>{console.error('[forge]',e.error||e.message);
   if(Date.now()-errAt>5000){errAt=Date.now();toast('Unexpected error — console has details. Data is safe.',{type:'er'})}});
 window.addEventListener('unhandledrejection',e=>{if(e.reason?.name!=='AbortError')console.error('[forge] async',e.reason)});
 
+/* ══ DRIVER · exposed for the cloud + pro add-on modules ══ */
+window.__forge={get S(){return S},saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
+
 /* ══ BOOT ══ */
+if(!localStorage.getItem('fs.cloud')){location.replace('/signin');throw new Error('Sign-in required');}
 root.dataset.panel=PF.panel==='open'?'open':'closed';
 paintTheme();paintChip();paintState();paintFoot();layout();renderChats();renderThread();renderPanel();paintSend();grow();applyViewport();
 $('#console').hidden=!PF.consoleOpen;paintAgentbar();renderConsole();
-$$('#modeSeg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===(proj().agent.mode||PF.mode))));
+$('#modeSeg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===(proj().agent.mode||PF.mode))));
+$('#workSeg [data-work]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.work===(PF.workMode||'agent'))));
 $('#cSortL').textContent=SORTS.find(s=>s.v===PF.sort)?.n||'Recent';
 $('#cStar').setAttribute('aria-pressed',String(PF.starOnly));
 $('#cAll').setAttribute('aria-pressed',String(PF.allProjects));
@@ -2992,7 +2936,8 @@ function paintBody(tab){
       const fmt=n=>n>=.01?('$'+n.toFixed(2)):('$'+Number(n).toFixed(5));
       const rows=(detail.byModel||[]).slice(0,12).map(m=>`<tr><td style="padding:4px 6px">${Ce(m.provider)}</td><td style="padding:4px 6px"><code>${Ce(m.model)}</code></td><td style="padding:4px 6px;text-align:right">${m.calls}</td><td style="padding:4px 6px;text-align:right">${m.prompt_tokens}↑ ${m.completion_tokens}↓</td><td style="padding:4px 6px;text-align:right">${fmt(m.cost_usd)}</td></tr>`).join('');
       body.querySelector('#usOut').innerHTML=`
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+          <span><b>${agg.plan||'free'}</b> plan</span>
           <span><b>${agg.totals?.calls||0}</b> calls</span>
           <span><b>${agg.totals?.promptTokens||0}</b> prompt tok</span>
           <span><b>${agg.totals?.completionTokens||0}</b> completion tok</span>
@@ -3040,6 +2985,239 @@ function paintBody(tab){
 btn.onclick=()=>openOv('account');
 if(localStorage.getItem('fs.autoSync')==='1'&&cloudOn())pushState(true);
 onpageshow=paintBtn;
+</script>
+<!-- FORGE PRO runtime styles (Codex/Claude-Code skin layer) -->
+<style id="fxStyle">
+#fxRun{display:flex;align-items:center;gap:10px;font:600 11px/1 ui-monospace,'JetBrains Mono',SFMono-Regular,Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--tx3,#76766E);padding:0 2px 8px;margin-bottom:6px;border-bottom:1px dashed var(--line2,#D4D3CE)}
+#fxRun[hidden]{display:none}
+#fxRun .dot{width:7px;height:7px;border-radius:50%;background:#1F5E52;animation:fxpulse 1.1s ease-in-out infinite}
+#fxRun .dot.ok{background:var(--ok,#2E6B4F);animation:none}
+#fxRun b{color:var(--tx,#1A1A18)}
+#fxRun .mx{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34ch}
+@keyframes fxpulse{0%,100%{opacity:1}50%{opacity:.25}}
+.msg[data-fxbadge]::after{content:attr(data-fxbadge);display:block;font:500 10px/1.4 ui-monospace,'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3,#76766E);opacity:.75;margin:6px 10px 0}
+@media print{
+  body *{visibility:hidden}
+  #thread,#thread *{visibility:visible}
+  #thread{position:absolute;left:0;top:0;width:100%;height:auto;max-height:none;overflow:visible}
+  #fxRun{display:none}
+}
+</style>
+<script type="module">
+/* ══ FORGE PRO · Codex / Claude-Code-style runtime layer ══ */
+const R = () => window.__forge;
+const F = await new Promise((res) => {
+  const t = setInterval(() => { if (R()) { clearInterval(t); res(R()); } }, 40);
+});
+
+const $s = (sel) => document.querySelector(sel);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const thread = $s('#thread');
+const composer = $s('#composer');
+const input = $s('#input');
+const DL = (name, text, type = 'text/plain') => {
+  const u = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a'); a.href = u; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+};
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2));
+const msgText = (m) => m.role === 'user' ? (m.content || '') : (m.segments || []).filter((x) => x.type === 'text').map((x) => x.text).join('\n');
+const app = () => F.S.chats.find((c) => c.id === F.S.activeChat) || null;
+const slug = (t) => (t || 'chat').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'chat';
+
+/* ── 1 · Codex-style run strip: live elapsed · tok/s · output tokens ── */
+const strip = document.createElement('div');
+strip.id = 'fxRun'; strip.hidden = true;
+composer.prepend(strip);
+let run = null;
+const paintRun = () => {
+  if (!run) { strip.hidden = true; return; }
+  const el = (Date.now() - run.t0) / 1000;
+  const tp = run.tok > 0 && el > .3 ? run.tok / el : 0;
+  strip.innerHTML = `<span class="dot${run.done ? ' ok' : ''}"></span><b>${run.done ? 'Done' : 'Streaming'}</b>`
+    + `<span>${el.toFixed(1)}s</span>`
+    + (tp ? `<span>${tp < 10 ? tp.toFixed(1) : Math.round(tp)} tok/s</span>` : '')
+    + (run.tok ? `<span>~${run.tok} out tok</span>` : '')
+    + `<span class="mx">${esc(run.label)}</span>`;
+  strip.hidden = false;
+};
+setInterval(() => { if (run && !run.done) paintRun(); }, 200);
+const settle = (r) => { if (run !== r || r.done) return; r.done = true; paintRun(); setTimeout(() => { if (run === r) { run = null; strip.hidden = true; } }, 3500); };
+async function consume(body, r) {
+  if (!body) { settle(r); return; }
+  const rd = body.getReader(); const dec = new TextDecoder(); let buf = '';
+  try {
+    for (;;) {
+      const { done, value } = await rd.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const ln = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!ln.startsWith('data:')) continue;
+        const d = ln.slice(5).trim();
+        if (d === '[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          if (j.usage?.completion_tokens) r.tok = j.usage.completion_tokens;
+          else {
+            const dt = j.choices?.[0]?.delta || {};
+            const txt = dt.content || dt.reasoning_content || '';
+            if (txt) r.tok += Math.max(1, Math.round(txt.length / 4));
+          }
+          if (run === r && !r.done) paintRun();
+        } catch { /* keep-alive or partial frame */ }
+      }
+    }
+  } catch { /* aborted stream */ }
+  settle(r);
+}
+const origFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  let url = '';
+  try { url = String((args[0] && args[0].url) || args[0] || ''); } catch { /* non-url input */ }
+  if (!url.includes('/chat/completions')) return origFetch(...args);
+  const r = { t0: Date.now(), tok: 0, done: false, label: '' };
+  run = r; paintRun();
+  const res = await origFetch(...args);
+  r.label = 'stream'; 
+  let reqBody = '';
+  try {
+    reqBody = typeof args[1]?.body === 'string' ? args[1].body : '';
+    const m = reqBody.match(/"model":\s*"([^"]+)"/);
+    if (m) r.label = m[1];
+  } catch { /* ignore */ }
+  if (!res.ok) { r.label = 'HTTP ' + res.status; settle(r); return res; }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('event-stream')) consume(res.clone().body, r);
+  else {
+    try {
+      const j = await res.clone().json();
+      if (j.usage?.completion_tokens) r.tok = j.usage.completion_tokens;
+    } catch { /* opaque */ }
+    settle(r);
+  }
+  return res;
+};
+
+/* ── 2 · Context badges: words · ~tok on every message ── */
+const sweep = () => {
+  const c = app(); if (!c) return;
+  thread.querySelectorAll('article.msg').forEach((el) => {
+    if (el.dataset.fxbadge) return;
+    const m = c.messages.find((x) => x.id === el.dataset.id);
+    if (!m || m.pending) return;
+    const t = msgText(m);
+    const w = (t.trim().match(/\S+/g) || []).length;
+    const k = Math.max(1, Math.round(t.length / 4));
+    el.dataset.fxbadge = `${w} words · ~${k} tok`;
+  });
+};
+const mo = new MutationObserver(() => { clearTimeout(mo._t); mo._t = setTimeout(sweep, 350); });
+mo.observe(thread, { childList: true, subtree: true, characterData: true });
+sweep();
+
+/* ── 3 · Slash commands (capture phase — runs before the composer handler) ── */
+const HELP = 'Commands: /new · /model · /worker · /export (md) · /json · /import · /clear · /usage · /help';
+const chatMD = (c) => '# ' + (c.title || 'Chat') + '\n\n' + (c.messages || [])
+  .map((m) => '**' + (m.role === 'user' ? 'You' : 'Forge') + '**\n\n' + (msgText(m) || '_(no text)_'))
+  .join('\n\n---\n\n');
+function pickJSON() {
+  const i = document.createElement('input');
+  i.type = 'file'; i.accept = '.json,application/json';
+  i.onchange = () => {
+    const f = i.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const j = JSON.parse(rd.result);
+        const msgs = j.messages || j;
+        if (!Array.isArray(msgs)) throw new Error('no messages');
+        const nc = {
+          id: uid(), projectId: F.S.activeProject,
+          title: String(j.title || f.name.replace(/\.json$/i, '')).slice(0, 54),
+          messages: msgs.map((m) => ({
+            id: uid(), role: m.role === 'user' ? 'user' : 'assistant',
+            content: String(m.content || ''), ts: m.ts || Date.now(), segments: [],
+          })),
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        F.S.chats.unshift(nc); F.S.activeChat = nc.id; F.saveS();
+        F.layout(); F.renderChats(); F.renderThread();
+        F.toast('Imported ' + nc.messages.length + ' messages.', { type: 'ok' });
+      } catch { F.toast('Not a valid chat JSON.', { type: 'er' }); }
+    };
+    rd.readAsText(f);
+  };
+  i.click();
+}
+async function showUsage() {
+  let cloud = null;
+  try { cloud = JSON.parse(localStorage.getItem('fs.cloud') || 'null'); } catch { /* unsigned */ }
+  if (!cloud) return F.toast('Sign in to see cloud usage.', { type: 'wa' });
+  try {
+    const r = await fetch('/api/usage', { headers: { Authorization: 'Bearer ' + cloud.token } });
+    const j = await r.json();
+    const t = j.totals || {};
+    F.toast(`30-day usage — ${t.calls ?? 0} calls · in ${t.promptTokens ?? 0} tok · out ${t.completionTokens ?? 0} tok · $${(t.costUsd ?? 0).toFixed ? (t.costUsd ?? 0).toFixed(4) : t.costUsd ?? 0}`,
+      { type: 'in', timeout: 9000 });
+  } catch (e) { F.toast('Usage unavailable: ' + e.message, { type: 'er' }); }
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+  const ta = $s('#input');
+  if (!ta || document.activeElement !== ta) return;
+  const v = ta.value.trim();
+  if (!v.startsWith('/')) return;
+  const cmd = v.split(/\s/)[0].toLowerCase();
+  const c = app();
+  const ok = () => {
+    e.preventDefault(); e.stopImmediatePropagation();
+    ta.value = ''; ta.dispatchEvent(new Event('input')); ta.focus();
+  };
+  switch (cmd) {
+    case '/new':
+      ok(); F.S.activeChat = ''; F.saveS(); F.layout(); F.renderChats(); F.renderThread();
+      break;
+    case '/model': ok(); F.openModelPicker(); break;
+    case '/worker': ok(); F.openWorker(); break;
+    case '/export':
+      ok();
+      if (!c) { F.toast('Nothing to export yet.', { type: 'wa' }); break; }
+      DL(slug(c.title) + '.md', chatMD(c), 'text/markdown');
+      break;
+    case '/json':
+      ok();
+      if (!c) { F.toast('Nothing to export yet.', { type: 'wa' }); break; }
+      DL(slug(c.title) + '.json', JSON.stringify({ title: c.title, exportedAt: Date.now(), messages: c.messages }, null, 2), 'application/json');
+      break;
+    case '/import': ok(); pickJSON(); break;
+    case '/clear':
+      ok();
+      if (c && c.messages.length) { c.messages = []; F.saveS(); F.renderThread(); F.toast('Messages cleared.', { type: 'ok' }); }
+      break;
+    case '/usage': ok(); showUsage(); break;
+    case '/help': ok(); F.toast(HELP, { type: 'in', timeout: 12000 }); break;
+    default:
+      e.preventDefault(); e.stopImmediatePropagation();
+      F.toast('Unknown command ' + esc(cmd) + ' — try /help', { type: 'wa' });
+  }
+}, true);
+let hinted = false;
+input.addEventListener('input', () => {
+  if (!hinted && input.value === '/') { hinted = true; F.toast('Slash mode — /help lists commands.', { type: 'in', timeout: 5000 }); }
+});
+
+/* ── 4 · Multi-tab conflict guard ── */
+let lastSt = 0;
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'fs.state') return;
+  const now = Date.now();
+  if (now - lastSt < 8000) return;
+  lastSt = now;
+  F.toast('Workspace changed in another tab.', { type: 'wa', timeout: 9000, action: { label: 'Load latest', fn: () => location.reload() } });
+});
 </script>
 </body>
 </html>
