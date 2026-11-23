@@ -2863,6 +2863,7 @@ window.addEventListener('offline',paintState);
 window.addEventListener('pagehide',()=>{if(live){live.stopped=true;try{live.ac.abort()}catch{}}stopMic();speechSynthesis.cancel?.()});
 let errAt=0;
 window.addEventListener('error',e=>{console.error('[forge]',e.error||e.message);
+  if(e.error?.silent)return;
   if(Date.now()-errAt>5000){errAt=Date.now();toast('Unexpected error — console has details. Data is safe.',{type:'er'})}});
 window.addEventListener('unhandledrejection',e=>{if(e.reason?.name!=='AbortError')console.error('[forge] async',e.reason)});
 
@@ -3038,12 +3039,12 @@ taskList();
 window.__forge={get S(){return S},get tok(){return JSON.parse(localStorage.getItem('fs.cloud')||'{}').token||''},get PF(){return PF},gateway,savePF,saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
 
 /* ══ BOOT ══ */
-if(!localStorage.getItem('fs.cloud')){location.replace('/signin');throw new Error('Sign-in required');}
+if(!localStorage.getItem('fs.cloud')){location.replace('/signin');throw Object.assign(new Error('Sign-in required'),{silent:true});}
 root.dataset.panel=PF.panel==='open'?'open':'closed';
 paintTheme();paintChip();paintState();paintFoot();layout();renderChats();renderThread();renderPanel();paintSend();grow();applyViewport();
 $('#console').hidden=!PF.consoleOpen;paintAgentbar();renderConsole();
-$('#modeSeg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===(proj().agent.mode||PF.mode))));
-$('#workSeg [data-work]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.work===(PF.workMode||'agent'))));
+$$('#modeSeg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===(proj().agent.mode||PF.mode))));
+$$('#workSeg [data-work]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.work===(PF.workMode||'agent'))));
 $('#cSortL').textContent=SORTS.find(s=>s.v===PF.sort)?.n||'Recent';
 $('#cStar').setAttribute('aria-pressed',String(PF.starOnly));
 $('#cAll').setAttribute('aria-pressed',String(PF.allProjects));
