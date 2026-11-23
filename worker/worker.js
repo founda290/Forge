@@ -5,7 +5,29 @@ const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GE
 const json=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'Content-Type':'application/json',...CORS}});
 const hits=new Map();
 function limited(ip,max=600){const n=Date.now(),w=hits.get(ip)||{n:0,t:n};if(n-w.t>60000){w.n=0;w.t=n}w.n++;hits.set(ip,w);return w.n>max}
-export default{async fetch(req,env){
+async function runJobs(env){
+  const l=JSON.parse((await env.FORGE_KV.get('jobs'))||'[]');let done=0;
+  for(const j of l){
+    if(j.status!=='queued')continue;
+    j.status='running';
+    try{
+      const base=j.base.replace(/\/+$/,'');
+      const isA=/anthropic/i.test(base);
+      const r=isA
+        ?await fetch(base+'/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':j.key||'','anthropic-version':'2023-06-01'},body:JSON.stringify({model:j.model,system:j.system||'You are Forge, an autonomous background agent. Complete the task fully, then output the final result.',messages:[{role:'user',content:j.prompt}],max_tokens:8192,stream:false}),signal:AbortSignal.timeout(120000)})
+        :await fetch(base+'/chat/completions',{method:'POST',headers:{'content-type':'application/json',...(j.key?{'Authorization':'Bearer '+j.key}:{})},body:JSON.stringify({model:j.model,messages:[{role:'system',content:j.system||'You are Forge, an autonomous background agent. Complete the task fully, then output the final result.'},{role:'user',content:j.prompt}],stream:false}),signal:AbortSignal.timeout(120000)});
+      const t=await r.text();let jz=null;try{jz=JSON.parse(t)}catch{}
+      if(r.ok)j.result=(isA?(jz&&jz.content||[]).map(c=>c.text||'').join(''):(jz&&jz.choices&&jz.choices[0]&&jz.choices[0].message&&jz.choices[0].message.content||'')).slice(0,40000)||'(empty response)';
+      else{j.status='error';j.error=('HTTP '+r.status+' '+t.slice(0,300))}
+    }catch(e){j.status='error';j.error=String(e&&e.message||e).slice(0,300)}
+    j.finished=new Date().toISOString();
+    await env.FORGE_KV.put('jobs',JSON.stringify(l.slice(-60)));
+    if(++done>=2)break;
+  }
+  const keep=l.filter(x=>!(x.finished&&Date.now()-new Date(x.finished).getTime()>6048e5));
+  if(keep.length!==l.length)await env.FORGE_KV.put('jobs',JSON.stringify(keep));
+}
+export default{async scheduled(ctrl,env,ctx){ctx.waitUntil(runJobs(env))},async fetch(req,env){
   if(req.method==='OPTIONS')return new Response(null,{headers:CORS});
   const url=new URL(req.url),ip=req.headers.get('cf-connecting-ip')||'anon';
   if((url.pathname==='/v1/chat/completions'||url.pathname==='/fetch')&&limited(ip))return json({error:'rate limited'},429);
@@ -50,6 +72,19 @@ export default{async fetch(req,env){
       const id=url.searchParams.get('id')||'default';
       if(req.method==='GET')return json(JSON.parse((await env.FORGE_KV.get('ws:'+id))||'null'));
       const b=await req.text();await env.FORGE_KV.put('ws:'+id,b);return json({ok:true,bytes:b.length})}
-    if(url.pathname==='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync']});
+    if(url.pathname==='/jobs'){if(!env.FORGE_KV)return json({error:'bind FORGE_KV'},400);
+      const load=async()=>JSON.parse((await env.FORGE_KV.get('jobs'))||'[]');
+      const pub=j=>({id:j.id,status:j.status,name:j.name,created:j.created,result:j.result,error:j.error});
+      if(req.method==='POST'){const b=await req.json();
+        if(!b.prompt||!b.model||!b.base)return json({error:'model, base, prompt required'},400);
+        const j={id:'j'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),status:'queued',name:String(b.name||String(b.prompt).slice(0,60)).slice(0,100),prompt:String(b.prompt).slice(0,12000),model:String(b.model).slice(0,120),base:String(b.base).slice(0,300),system:String(b.system||'').slice(0,4000),key:String(b.key||'').slice(0,400),created:new Date().toISOString()};
+        const l=await load();l.push(j);await env.FORGE_KV.put('jobs',JSON.stringify(l.slice(-60)));
+        return json({id:j.id,status:j.status})}
+      if(req.method==='GET'){const id=url.searchParams.get('id');const l=await load();
+        if(id){const j=l.find(x=>x.id===id);return j?json({job:pub(j)}):json({error:'no such job'},404)}
+        return json({jobs:l.map(pub).reverse()})}
+      if(req.method==='DELETE'){const id=url.searchParams.get('id');const l=await load();const n=l.filter(x=>x.id!==id);await env.FORGE_KV.put('jobs',JSON.stringify(n));return json({ok:true,removed:l.length-n.length})}
+      return json({error:'method not allowed'},405)}
+    if(url.pathname==='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync','/jobs']});
     return json({error:'not found'},404);
   }catch(e){return json({error:String(e&&e.message||e)},500)}}};
