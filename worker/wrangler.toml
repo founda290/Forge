@@ -6,4 +6,7 @@ compatibility_date = "2025-01-01"
 
 [[kv_namespaces]]
 binding = "FORGE_KV"
-id = "your-kv-id"
+id = "36e3e8831ae34f5694ad536260c4d76d"
+
+[triggers]
+crons = ["* * * * *"]

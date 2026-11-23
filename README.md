@@ -52,6 +52,8 @@ All authenticated routes take `Authorization: Bearer <token>`; state routes take
 | `/api/connections/oauth/[provider]` | `?action=start` · `?action=callback` | OAuth 2.0 + PKCE flow for GitHub, Google, Notion, Figma |
 | `/api/health` | GET | liveness, `db:up` check |
 
+Background runs: the Cloudflare gateway worker exposes `POST/GET/DELETE /jobs` (FORGE_TOKEN-gated, stored in FORGE_KV) and a `* * * * *` cron trigger executes up to 2 queued jobs per tick with one completion each — the agent keeps working while the browser is closed, with near-zero idle CPU.
+
 ## Worker gateway (`forge-gateway`)
 
 Routes: `/` info · `/v1/chat/completions` (OpenAI + Anthropic adapter) · `/models` · `/mcp` · `/fetch` · `/exec` · `/sync`.
