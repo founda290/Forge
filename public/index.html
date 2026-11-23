@@ -570,6 +570,33 @@ html[data-theme=dark]{
   .bar{background:color-mix(in srgb,var(--surface) 90%,transparent)}
   .greet h1{font-size:1.45rem}
 }
+.homeview{position:fixed;inset:0;z-index:700;background:var(--bg);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;animation:hvIn .18s var(--ease)}
+@keyframes hvIn{from{opacity:0}to{opacity:1}}
+.hv-top{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:3}
+.hv-top .logo{width:30px;height:30px;border-radius:9px;background:var(--ac-bg);color:var(--ac);display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--ac-line)}
+.hv-top .logo svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.hv-scroll{width:100%;max-width:820px;margin:0 auto;padding:46px 20px 90px;display:flex;flex-direction:column;gap:34px}
+.hv-hero{text-align:center}
+.hv-hero h1{font-size:clamp(1.45rem,4.5vw,2.05rem);letter-spacing:-.02em;color:var(--tx);line-height:1.25}
+.hv-hero h1 em{font-style:normal;color:var(--ac)}
+.hv-hero p{color:var(--tx2);font-size:.875rem;margin-top:8px}
+.hv-composer{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r4);padding:14px;box-shadow:var(--sh2)}
+.hv-composer:focus-within{border-color:var(--ac-line)}
+.hv-composer textarea{width:100%;min-height:86px;max-height:220px;resize:none;border:0;outline:0;background:transparent;color:var(--tx);font:inherit;font-size:.9375rem;line-height:1.55}
+.hv-composer textarea::placeholder{color:var(--tx3)}
+.hv-chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}
+.hv-foot{display:flex;align-items:center;gap:10px}
+.hv-kinds{display:inline-flex;align-items:center;gap:6px;color:var(--tx3);font-size:.6875rem;text-transform:uppercase;letter-spacing:.08em}
+.hv-sec{display:flex;align-items:center;gap:10px;color:var(--tx3);font-size:.6875rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+.hv-sec::after{content:'';flex:1;height:1px;background:var(--line)}
+.hv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:10px}
+.tk{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:var(--r3);background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color var(--t),box-shadow var(--t)}
+.tk:hover{border-color:var(--ac-line);box-shadow:var(--sh1)}
+.tk-ic{width:32px;height:32px;border-radius:10px;background:var(--ac-bg);color:var(--ac);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.tk-b{min-width:0;display:flex;flex-direction:column;gap:4px}
+.tk-b b{font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-b small{color:var(--tx2);font-size:.6875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:640px){.hv-scroll{padding:28px 14px 70px}.hv-grid{grid-template-columns:1fr 1fr}}
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -636,6 +663,7 @@ html[data-theme=dark]{
 <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
 <symbol id="i-down" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></symbol>
 <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
 <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v3.5M12 17.5V21M3 12h3.5M17.5 12H21M5.6 5.6l2.5 2.5M15.9 15.9l2.5 2.5M18.4 5.6l-2.5 2.5M8.1 15.9l-2.5 2.5"/><circle cx="12" cy="12" r="3.2"/></symbol>
 <symbol id="i-filter" viewBox="0 0 24 24"><polygon points="21 4 3 4 10 12.5 10 19 14 21 14 12.5"/></symbol>
 <symbol id="i-select" viewBox="0 0 24 24"><polyline points="9 11 12 14 20 6"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></symbol>
@@ -654,6 +682,8 @@ html[data-theme=dark]{
 <div class="shell">
   <nav class="rail" aria-label="Workspace">
     <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 19V5h9M8 12h6.5"/></svg></span>
+    <button class="rbtn" data-nav="home" title="Home — give Forge a task" aria-label="Home"><svg class="i l"><use href="#i-home"/></svg></button>
+    <button class="rbtn" data-nav="tasks" title="Task history" aria-label="Tasks"><svg class="i l"><use href="#i-activity"/></svg><span class="badge" id="bTasks" hidden>0</span></button>
     <button class="rbtn on" data-nav="chats" title="Chats" aria-label="Chats"><svg class="i l"><use href="#i-msg"/></svg></button>
     <button class="rbtn" data-nav="projects" title="Projects" aria-label="Projects"><svg class="i l"><use href="#i-folder"/></svg></button>
     <button class="rbtn" data-nav="connectors" title="Connectors — paste a URL" aria-label="Connectors"><svg class="i l"><use href="#i-plug"/></svg><span class="badge" id="bCon" hidden>0</span></button>
@@ -1458,7 +1488,7 @@ async function agentLoop(c,m,{depth=0,extraSys=''}={}){
   if(!nodeOf(m.id))thread.appendChild(msgNode(m,c));else repaint(m,c);
   toEnd(true);
   const st={cid:c.id,ac:new AbortController(),stopped:false,usage:null,raf:0};
-  if(depth===0){live=st;turnSteps=[];paintSend();paintState();paintAgentbar()}
+  if(depth===0){live=st;turnSteps=[];paintSend();paintState();paintAgentbar();pubTaskRun()}
   const tools=m.work==='chat'?[]:(depth>0?[]:toolSpecs()),maxLoops=(m.work==='chat'||depth>0)?1:PF.toolLoops;
   let msgs=toApi(c);const ws=workSys(m.work);if(extraSys)msgs[0]={role:'system',content:msgs[0].content+'\n\n'+extraSys};
   if(ws)msgs[0]={role:'system',content:msgs[0].content+'\n\n'+ws};
@@ -1497,7 +1527,7 @@ async function agentLoop(c,m,{depth=0,extraSys=''}={}){
         const r=await execTool(seg.name,args);
         seg.done=true;seg.ok=r.ok;seg.result=r.out;seg.ms=r.ms;
         tput(r.out.slice(0,1400),r.ok?'ok':'err');
-        turnSteps.push({name:seg.name,ok:r.ok,ms:r.ms,at:Date.now()});
+        turnSteps.push({name:seg.name,ok:r.ok,ms:r.ms,at:Date.now()});pubTaskStep(turnSteps.at(-1));
         S.runs.unshift({id:uid(),tool:seg.name,ok:r.ok,ms:r.ms,at:Date.now(),args:seg.args.slice(0,400),out:r.out.slice(0,1000),chat:c.id});
         if(S.runs.length>200)S.runs.length=200;
         msgs.push({role:'tool',tool_call_id:seg.id,content:r.out});
@@ -1516,12 +1546,13 @@ async function agentLoop(c,m,{depth=0,extraSys=''}={}){
   if(problem==='stopped'){m.stopped=true;if(!allText)m.segments.push({type:'text',text:'_Stopped before output._'})}
   else if(problem)m.error=problem instanceof TypeError?'Network error — check the gateway URL, CORS, or enable the Worker proxy.':String(problem.message||problem).slice(0,400);
   c.updatedAt=Date.now();repaint(m,c);saveS();renderChats();
-  if(depth===0){live=null;setStep('Idle · '+(m.toolCount?m.toolCount+' tool calls done':'tools armed'));paintSend();paintState();paintFoot()}
+  if(depth===0){live=null;if(TASK.id)pubTaskEnd(m);setStep('Idle · '+(m.toolCount?m.toolCount+' tool calls done':'tools armed'));paintSend();paintState();paintFoot()}
   renderConsole();renderPanel();if(near())toEnd();
   if(PF.autoSpeak&&allText&&depth===0)speak(allText.slice(0,1200));
   return allText;
 }
-function generate(c){const m={id:uid(),role:'assistant',ts:Date.now(),segments:[],content:''};c.messages.push(m);c.updatedAt=Date.now();agentLoop(c,m)}
+function generate(c){const m={id:uid(),role:'assistant',ts:Date.now(),segments:[],content:''};c.messages.push(m);c.updatedAt=Date.now();
+  const xs=TASK_DIRECTIVE;TASK_DIRECTIVE='';agentLoop(c,m,{extraSys:xs||undefined})}
 async function runSubagent(nameOrId,task){
   const a=S.subagents.find(x=>x.id===nameOrId||x.name.toLowerCase()===String(nameOrId||'').toLowerCase())||S.subagents[0];
   if(!a)return 'No subagent configured. Create one in Agents.';
@@ -1664,7 +1695,7 @@ function speak(text){
 let termLines=[{t:'dim',v:'Forge terminal — type help for commands.'}],termHist=[],termHi=0;
 function tput(v,t=''){termLines.push({t,v:String(v)});if(termLines.length>500)termLines.splice(0,termLines.length-500);
   if(PF.consoleOpen&&PF.consoleTab==='term')renderConsole()}
-function setStep(s){curStep=s;paintAgentbar()}
+function setStep(s){curStep=s;paintAgentbar();pubTaskStatus(s)}
 function paintAgentbar(){
   const bar=$('#agentbar');
   bar.classList.toggle('busy',!!live);
@@ -2796,6 +2827,8 @@ function setWork(w){PF.workMode=w;savePF();$('#workSeg [data-work]').forEach(b=>
 $('#workSeg').addEventListener('click',e=>{const b=e.target.closest('[data-work]');if(b)setWork(b.dataset.work)});
 function navTo(v){
   $$('.rbtn').forEach(b=>b.classList.toggle('on',b.dataset.nav===v));
+  if(v==='home'){openHomeView();return}
+  if(v==='tasks'){openTasks();return}
   if(v==='chats'){openSidebar();return}
   if(v==='console'){toggleConsole();return}
   ({projects:openProjects,agents:openAgents,skills:openSkills,connectors:()=>openConnectors('all'),
@@ -2815,6 +2848,7 @@ document.addEventListener('keydown',e=>{
     if(pmEl){closePlus();return}
     if(openSel){openSel.remove();openSel=null;return}
     if(modalStack.length)return;
+    if(homeEl){closeHome();return}
     if($('#sidebar').classList.contains('on')){closeSidebar();return}
     if(mqTablet.matches&&root.dataset.panel==='open'){closePanel();return}
     if(live){live.stopped=true;try{live.ac.abort()}catch{}}
@@ -2831,6 +2865,174 @@ let errAt=0;
 window.addEventListener('error',e=>{console.error('[forge]',e.error||e.message);
   if(Date.now()-errAt>5000){errAt=Date.now();toast('Unexpected error — console has details. Data is safe.',{type:'er'})}});
 window.addEventListener('unhandledrejection',e=>{if(e.reason?.name!=='AbortError')console.error('[forge] async',e.reason)});
+
+/* ══ TASK ENGINE · priority: ask → plan → execute → deliver ══ */
+let TASK_DIRECTIVE='',taskPulse=0,TASK_CACHE=[],homeEl=null;
+const TASK={id:null,kind:'research',chatId:''};
+const TASK_KINDS=[
+  {id:'research',n:'Research',ic:'search',hint:'Deep-dive a topic, compile sources into a brief',sys:'Research task: gather information with web_fetch and http_request, cross-check sources, and produce a structured findings report with links. Verify claims before stating them.'},
+  {id:'build',n:'Build an app',ic:'code',hint:'Create a real project with working files',sys:'Build task: create real files with write_file, keep components small, test logic with run_js, and finish with a file manifest listing every artifact you created.'},
+  {id:'data',n:'Analyze data',ic:'db',hint:'Crunch a dataset and explain what it means',sys:'Data task: inspect available files with list_files and read_file, analyze with run_js, and produce a concise report with the key numbers and a recommendation.'},
+  {id:'slides',n:'Create slides',ic:'image',hint:'Outline and generate a presentation',sys:'Slides task: plan the deck outline first, then produce one file per slide (markdown or HTML) with write_file, and finish with an index file linking all slides.'},
+  {id:'automate',n:'Automate work',ic:'worker',hint:'Set up or inspect background jobs',sys:'Automation task: check the gateway and worker state with http_request or the terminal, set up what is needed, and document how to trigger and verify the job.'}
+];
+const kindOf=id=>TASK_KINDS.find(k=>k.id===id)||TASK_KINDS[0];
+const cloudTok=()=>{try{return JSON.parse(localStorage.getItem('fs.cloud')||'null')?.token||''}catch{return ''}};
+async function taskFetch(path='',opts={}){
+  const r=await fetch('/api/tasks'+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+cloudTok(),...(opts.headers||{})}});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
+async function taskPatch(id,body){try{const r=await fetch('/api/tasks/'+id,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+cloudTok()},body:JSON.stringify(body)});if(r.status===401||r.status===404)TASK.id=''}catch{}}
+function pubTaskEvent(type,payload={}){if(!TASK.id)return;taskPatch(TASK.id,{event:{type,payload}})}
+function pubTaskStatus(s){if(!TASK.id)return;const now=Date.now();if(now-taskPulse<1500)return;taskPulse=now;pubTaskEvent('status',{step:s})}
+function pubTaskRun(){taskPulse=Date.now();pubTaskEvent('run',{})}
+function pubTaskStep(st){if(!TASK.id)return;pubTaskEvent('step',st||null)}
+function pubTaskEnd(m){
+  if(!TASK.id)return;
+  const text=(m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n').trim();
+  const status=m.stopped?'paused':m.error?'failed':'completed';
+  taskPatch(TASK.id,{status,steps:turnSteps.slice(-100),result:{summary:text.slice(-2000),toolCalls:m.toolCount||0,model:m.model||'',finishedAt:Date.now()}});
+  pubTaskEvent(status,{summary:text.slice(-300)});
+  taskList();TASK.id='';TASK.chatId='';
+}
+async function taskList(){
+  try{const d=await taskFetch('?limit=100');TASK_CACHE=Array.isArray(d.tasks)?d.tasks:TASK_CACHE}
+  catch{}
+  paintTasksBadge();return TASK_CACHE;
+}
+function paintTasksBadge(){
+  const b=$('#bTasks');if(!b)return;
+  const n=TASK_CACHE.filter(t=>t.status==='running').length;
+  b.hidden=!n;b.textContent=n>9?'9+':String(n);
+}
+function taskCard(t){
+  const k=kindOf(t.kind),st=t.status||'running';
+  const cls=st==='completed'?'ok':st==='failed'?'er':st==='running'?'wa':'';
+  const meta=[];
+  const nS=(t.steps||[]).length;if(nS)meta.push(nS+' step'+(nS>1?'s':''));
+  if(t.result?.toolCalls)meta.push(t.result.toolCalls+' tools');
+  meta.push(hhmm(new Date(t.updated_at||Date.now()).getTime()));
+  return `<button class="tk" data-task="${t.id}"><span class="tk-ic">${I(k.ic)}</span><span class="tk-b"><b>${esc(t.title||t.prompt)}</b><small><span class="tag ${cls}">${esc(st)}</span>${meta.length?' · '+esc(meta.join(' · ')):''}</small></span></button>`;
+}
+function renderHomeTasks(){
+  const g=$('#hvGrid');if(!g)return;
+  g.innerHTML=TASK_CACHE.length?TASK_CACHE.slice(0,8).map(taskCard).join(''):'<p class="help">No tasks yet — describe one above and Forge runs it end to end.</p>';
+  g.querySelectorAll('[data-task]').forEach(b=>b.onclick=()=>openTaskDetail(b.dataset.task));
+}
+async function openHomeView(){
+  if(homeEl)return;
+  homeEl=document.createElement('div');
+  homeEl.className='homeview';
+  homeEl.innerHTML=`<div class="hv-top">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 19V5h9M8 12h6.5"/></svg></span>
+    <b style="font-size:.9375rem">Forge</b><span style="color:var(--tx3);font-size:.8125rem">Studio</span>
+    <span style="flex:1"></span>
+    <button class="btn q sm" data-hnav="worker">${I('worker')}<span>Automations</span></button>
+    <button class="btn q sm" data-hnav="connectors">${I('plug')}<span>Connectors</span></button>
+    <button class="btn q ic" id="hvClose" aria-label="Close home">${I('x')}</button>
+  </div>
+  <div class="hv-scroll">
+    <div class="hv-hero"><h1>What would <em>you</em> like to accomplish?</h1><p>Give Forge a task. It plans, executes and delivers the result.</p></div>
+    <div class="hv-composer">
+      <textarea id="taskIn" placeholder="Describe a task, build something, research a topic…" aria-label="Task description"></textarea>
+      <div class="hv-chips">${TASK_KINDS.map((k,i)=>`<button class="chip" data-kind="${k.id}" aria-pressed="${i===0}" title="${esc(k.hint)}">${I(k.ic)}<span>${k.n}</span></button>`).join('')}</div>
+      <div class="hv-foot"><span class="hv-kinds">${I('agent','i s')} Agent mode</span><span style="flex:1"></span><button class="btn p" id="taskGo">${I('send','i s')} Start task</button></div>
+    </div>
+    <div><div class="hv-sec">Your workspace · Recent tasks</div><div class="hv-grid" id="hvGrid" style="margin-top:12px"><p class="help">Loading…</p></div></div>
+    <div><div class="hv-sec">Quick links</div><div class="hv-chips" style="margin-top:12px">
+      <button class="chip" data-hnav="projects">${I('folder')}<span>Projects</span></button>
+      <button class="chip" data-hnav="skills">${I('skill')}<span>Skills</span></button>
+      <button class="chip" data-hnav="providers">${I('key')}<span>Model &amp; gateway</span></button>
+      <button class="chip" data-hnav="settings">${I('gear')}<span>Settings</span></button>
+    </div></div>
+  </div>`;
+  document.body.appendChild(homeEl);
+  let kind=TASK_KINDS[0].id;
+  homeEl.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;homeEl.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))});
+  const ta=homeEl.querySelector('#taskIn');
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,220)+'px'});
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();startTask(ta.value,kind)}});
+  homeEl.querySelector('#taskGo').onclick=()=>startTask(ta.value,kind);
+  homeEl.querySelector('#hvClose').onclick=closeHome;
+  homeEl.querySelectorAll('[data-hnav]').forEach(b=>b.onclick=()=>{closeHome();navTo(b.dataset.hnav)});
+  setTimeout(()=>ta.focus(),60);
+  await taskList();renderHomeTasks();
+}
+function closeHome(){
+  if(!homeEl)return;
+  homeEl.remove();homeEl=null;
+  $$('.rbtn').forEach(b=>b.classList.toggle('on',b.dataset.nav==='chats'));
+}
+function setWorkAgent(){PF.workMode='agent';savePF();$$('#workSeg [data-work]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.work==='agent')))}
+async function startTask(prompt,kindId){
+  const k=kindOf(kindId);prompt=(prompt||'').trim();
+  if(!prompt){toast('Describe the task first.',{type:'in'});homeEl?.querySelector('#taskIn')?.focus();return}
+  if(!cloudTok())return toast('Sign in required.',{type:'er'});
+  if(live)return toast('Forge is already working — stop it first, or wait for it to finish.',{type:'in'});
+  closeHome();
+  try{
+    const d=await taskFetch('',{method:'POST',body:JSON.stringify({prompt,title:prompt.slice(0,120),kind:k.id,model:S.activeModel||'',deviceId:localStorage.getItem('fs.device')||''})});
+    TASK.id=d.task.id;TASK.kind=k.id;TASK.chatId='';
+    setWorkAgent();
+    TASK_DIRECTIVE=k.sys;
+    PF.consoleTab='steps';savePF();
+    input.value=prompt;send();
+    const c=chat();
+    if(c){TASK.chatId=c.id;c.taskId=TASK.id;saveS();renderChats();taskPatch(TASK.id,{chatId:c.id})}
+    if(!PF.consoleOpen)toggleConsole(true);else renderConsole();
+    setStep('Task running · '+k.n);
+    toast('Task started — live steps stream into the console.',{type:'ok',timeout:3200});
+  }catch(e){toast('Could not start task: '+e.message,{type:'er'})}
+}
+function taskMetaRow(t){
+  const st=t.status||'running';
+  const cls=st==='completed'?'ok':st==='failed'?'er':st==='running'?'wa':'';
+  const last=(t.result?.summary||'').slice(0,220);
+  return `<div class="steprow" data-task="${t.id}" role="button" tabindex="0" style="cursor:pointer">
+    <span class="sn">${I(kindOf(t.kind).ic)}</span>
+    <span class="si"><b>${esc(t.title||t.prompt)}</b><small>${hhmm(new Date(t.updated_at||Date.now()).getTime())}${last?' · '+esc(last.replace(/\s+/g,' ')):''}</small></span>
+    <span class="tag ${cls}">${esc(st)}</span></div>`;
+}
+function openTasks(){
+  const m=modal({title:'Task history',icon:'activity',size:'lg',body:'<p class="help">Loading…</p>'});
+  taskList().then(()=>{
+    if(!m.el.isConnected)return;
+    const done=TASK_CACHE.filter(t=>t.status==='completed').length;
+    m.body.innerHTML=TASK_CACHE.length
+      ?`<div class="con-scroll">
+        <p class="help" style="margin-bottom:8px">${TASK_CACHE.length} task${TASK_CACHE.length>1?'s':''} · ${done} completed · ${TASK_CACHE.length-done} active or unfinished. Click a task for detail.</p>
+        ${TASK_CACHE.map(taskMetaRow).join('')}</div>`
+      :'<p class="help">No tasks yet. Press the Home button in the rail and give Forge something to do.</p>';
+    m.body.querySelectorAll('[data-task]').forEach(r=>{
+      r.onclick=()=>openTaskDetail(r.dataset.task);
+      r.onkeydown=e=>{if(e.key==='Enter')openTaskDetail(r.dataset.task)};
+    });
+  }).catch(()=>{if(m.el.isConnected)m.body.innerHTML='<p class="help">Could not load tasks — check the connection and reopen.</p>'});
+}
+async function openTaskDetail(id){
+  const m=modal({title:'Task',icon:'agent',size:'lg',body:'<p class="help">Loading…</p>'});
+  let t;
+  try{t=(await taskFetch('/'+id)).task}catch{
+    if(m.el.isConnected)m.body.innerHTML='<p class="help">Task not found or no longer accessible.</p>';return}
+  if(!m.el.isConnected)return;
+  const st=t.status||'running';
+  const cls=st==='completed'?'ok':st==='failed'?'er':st==='running'?'wa':'';
+  const steps=(t.steps||[]).map((s,i)=>`<div class="steprow"><span class="sn">${i+1}</span><span class="si"><b>${esc(s.name)}</b><small>${s.at?hhmm(s.at):''}${s.ms?' · '+s.ms+'ms':''}</small></span><span class="tag ${s.ok===false?'er':'ok'}">${s.ok===false?'fail':'ok'}</span></div>`).join('');
+  const sum=t.result?.summary?`<div class="hv-sec" style="margin:14px 0 8px">Result</div><div class="codeview"><pre>${esc(t.result.summary)}</pre></div>`:'';
+  const tCalls=t.result?.toolCalls?`<span class="tag in">${t.result.toolCalls} tool calls</span>`:'';
+  const mdl=t.model?`<span class="tag">${esc(t.model)}</span>`:'';
+  m.card.querySelector('.mhead b').textContent=t.title||t.prompt||'Task';
+  m.body.innerHTML=`<div class="con-scroll">
+    <div class="swrow"><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="tag ${cls}">${esc(st)}</span><span class="tag">${esc(kindOf(t.kind).n)}</span>${tCalls}${mdl}<span class="tag">${hhmm(new Date(t.updated_at||Date.now()).getTime())}</span></span>
+    <span style="flex:1"></span>${t.prompt?`<button class="btn q sm" data-tk="${t.id}">${I('refresh')}Run again</button>`:''}</div>
+    <div class="hv-sec" style="margin:14px 0 8px">Steps</div>
+    ${steps||'<p class="help">No recorded steps.</p>'}${sum}</div>`;
+  const rb=m.body.querySelector('[data-tk]');
+  if(rb)rb.onclick=()=>{m.close();const t2=t;startTask(t2.prompt,t2.kind)};
+}
+taskList();
 
 /* ══ DRIVER · exposed for the cloud + pro add-on modules ══ */
 window.__forge={get S(){return S},get tok(){return JSON.parse(localStorage.getItem('fs.cloud')||'{}').token||''},get PF(){return PF},gateway,savePF,saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
@@ -2851,6 +3053,7 @@ listModels(S.activeProvider).then(l=>{if(!S.activeModel&&l.length){S.activeModel
 S.connectors.filter(c=>c.status==='online').forEach(c=>connectURL(c,{silent:true}));
 if(!Object.keys(S.keys).some(k=>!k.startsWith('__'))&&!provById(S.activeProvider)?.nokey)
   setTimeout(()=>toast('Add a gateway key to start writing. Connectors need only a URL.',{type:'in',timeout:7500,action:{label:'Open gateways',fn:()=>openProviders()}}),700);
+if(!chat())openHomeView();
 </script>
 <script type="module">
 /* ══ CLOUD SYNC · self-contained add-on: account, state sync, usage, webhooks, worker ══ */

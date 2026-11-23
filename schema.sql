@@ -162,3 +162,34 @@ create table if not exists secrets (
   updated_at  timestamptz not null default now(),
   primary key (user_id, skey)
 );
+
+-- Delegated tasks (Manus-style runs): the unit of work between user and agent
+create table if not exists tasks (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references users(id) on delete cascade,
+  project_id  text,
+  title       text not null,
+  prompt      text not null,
+  kind        text not null default 'research',
+  model       text,
+  status      text not null default 'running',   -- running | paused | completed | failed
+  steps       jsonb not null default '[]',
+  result      jsonb,
+  chat_id     text,
+  device_id   text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists tasks_user_recent on tasks(user_id, updated_at desc);
+create index if not exists tasks_status on tasks(status, updated_at desc);
+
+-- Live execution feed per task (steps, tool calls, status changes)
+create table if not exists task_events (
+  id          bigserial primary key,
+  task_id     uuid not null references tasks(id) on delete cascade,
+  user_id     uuid references users(id) on delete cascade,
+  type        text not null,
+  payload     jsonb not null default '{}',
+  created_at  timestamptz not null default now()
+);
+create index if not exists task_events_recent on task_events(task_id, id desc);
