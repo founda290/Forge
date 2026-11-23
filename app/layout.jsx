@@ -1,9 +1,9 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Forge — one studio for every frontier model",
+  title: "Forge — give a task, get it done",
   description:
-    "Forge is an agentic workspace for 60+ AI providers: chats, agents, tools, MCP connectors, cloud sync, and a usage dashboard.",
+    "Forge Studio is a Manus-style agentic workspace: give it a task and it plans, executes tools and MCP connectors, streams live steps and delivers files, reports and slides. 60+ AI providers, bring your own keys.",
 };
 
 export const viewport = { width: "device-width", initialScale: 1 };

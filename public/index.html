@@ -597,6 +597,14 @@ html[data-theme=dark]{
 .tk-b b{font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tk-b small{color:var(--tx2);font-size:.6875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:640px){.hv-scroll{padding:28px 14px 70px}.hv-grid{grid-template-columns:1fr 1fr}}
+.sbt-wrap{flex:none;max-height:190px;overflow-y:auto;border-bottom:1px solid var(--line);padding:2px 8px 8px;background:var(--surface2)}
+.sbt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:.75rem;color:var(--tx2)}
+.sbt:hover{background:var(--surface3);color:var(--tx)}
+.sbt .dot{width:7px;height:7px}
+.sbt .dot.live{animation:pulseDot 1.3s var(--ease) infinite}
+.sbt-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbt .ring{width:10px;height:10px;border-width:2px}
+@keyframes pulseDot{50%{opacity:.3}}
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -704,7 +712,10 @@ html[data-theme=dark]{
         <button class="proj-btn" id="projBtn"><span class="proj-dot" id="projDot"></span><b id="projName">Project</b><svg class="i s"><use href="#i-chev"/></svg></button>
         <button class="btn q ic" id="sbClose" aria-label="Close chats"><svg class="i"><use href="#i-x"/></svg></button>
       </div>
-      <button class="btn p full" id="btnNew"><svg class="i s"><use href="#i-plus"/></svg>New chat</button>
+      <div class="line" style="gap:6px;flex-wrap:nowrap">
+        <button class="btn p" id="btnTask" style="flex:1.5"><svg class="i s"><use href="#i-spark"/></svg>New task</button>
+        <button class="btn" id="btnNew" style="flex:1" title="Plain chat"><svg class="i s"><use href="#i-plus"/></svg>Chat</button>
+      </div>
       <div class="sb-search"><svg class="i s"><use href="#i-search"/></svg><input type="text" id="qChat" placeholder="Search this project" aria-label="Search chats" autocomplete="off"/></div>
     </div>
     <div class="sb-tools">
@@ -718,6 +729,7 @@ html[data-theme=dark]{
       <b class="mono" id="bulkN">0</b><span>selected</span><span style="flex:1"></span>
       <button class="btn d sm" id="bulkDel" disabled>Delete</button><button class="btn q sm" id="bulkDone">Done</button>
     </div>
+    <div class="sbt-wrap" id="sbTasks" hidden></div>
     <nav class="list" id="chatList" aria-label="Chat list"></nav>
     <div class="sb-foot">
       <div class="foot"><span class="dot" id="fDot"></span><span id="fKey">No gateway key</span></div>
@@ -762,7 +774,7 @@ html[data-theme=dark]{
           <button class="ab-main" id="abToggle" aria-expanded="false">
             <span class="ab-orb" id="abOrb"><svg class="i s"><use href="#i-spark"/></svg></span>
             <span class="ab-tx"><b id="abTitle">Forge</b><small id="abStep">Idle · tools armed</small></span>
-            <span class="ab-meta"><span class="tag" id="abCount">0 steps</span></span>
+            <span class="ab-meta"><span class="tag ac" id="abFiles" hidden></span><span class="tag" id="abCount">0 steps</span></span>
             <svg class="i s" id="abChev"><use href="#i-up"/></svg>
           </button>
           <div class="ab-acts">
@@ -1703,6 +1715,8 @@ function paintAgentbar(){
   $('#abTitle').textContent=live?'Forge is working':'Forge';
   $('#abStep').textContent=curStep;
   $('#abCount').textContent=(turnSteps.length||S.runs.length)+' steps';
+  const fw=turnSteps.filter(x=>x.name==='write_file'||x.name==='download_file').length,fr=turnSteps.filter(x=>x.name==='read_file'||x.name==='list_files'||x.name==='search_workspace').length;
+  const fa=$('#abFiles');fa.hidden=!(fw||fr);fa.textContent=[fw?'Edited '+fw:'',fr?'Read '+fr:''].filter(Boolean).join(' · ');
   $('#abStop').hidden=!live;
   $('#shieldIc').setAttribute('href',PF.autoApprove?'#i-shield':'#i-shieldoff');
   $('#abShield').classList.toggle('on',PF.autoApprove);
@@ -2023,6 +2037,7 @@ function delChat(id){
 }
 $('#btnNew').onclick=()=>{if(live){live.stopped=true;try{live.ac.abort()}catch{}}
   S.activeChat='';saveS();layout();renderChats();renderThread();input.value='';grow();paintSend();input.focus();closeSidebar()};
+$('#btnTask').onclick=()=>{closeSidebar();navTo('home')};
 $('#qChat').addEventListener('input',deb(e=>{chatQ=e.target.value.trim();renderChats()},120));
 const SORTS=[{v:'recent',n:'Recent'},{v:'oldest',n:'Oldest'},{v:'alpha',n:'A–Z'},{v:'size',n:'Longest'}];
 $('#cSort').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();
@@ -2777,6 +2792,7 @@ function exportChat(){
 }
 const COMMANDS=[
  {n:'New chat',i:'plus',k:'Ctrl+N',f:()=>$('#btnNew').click()},
+ {n:'New task',i:'spark',f:()=>navTo('home')},
  {n:'Tools menu',i:'plus',f:()=>openPlus($('#btnPlus'))},
  {n:'Agent console',i:'term',k:'Ctrl+`',f:()=>toggleConsole()},
  {n:'Connectors — add by URL',i:'plug',f:()=>openConnectors('all')},
@@ -2912,7 +2928,24 @@ function pubTaskEnd(m){
 async function taskList(){
   try{const d=await taskFetch('?limit=100');TASK_CACHE=Array.isArray(d.tasks)?d.tasks:TASK_CACHE}
   catch{}
-  paintTasksBadge();return TASK_CACHE;
+  paintTasksBadge();renderSidebarTasks();return TASK_CACHE;
+}
+function renderSidebarTasks(){
+  const w=$('#sbTasks');if(!w)return;
+  const rows=TASK_CACHE.slice(0,4);
+  w.hidden=!rows.length;
+  if(!rows.length)return;
+  const run=TASK_CACHE.filter(t=>t.status==='running').length;
+  w.innerHTML=`<div class="grp" style="display:flex;align-items:center;padding-right:8px">Tasks<span style="flex:1"></span>${run?`<span class="tag ac">${run} live</span>`:''}</div>`
+    +rows.map(t=>{const st=t.status||'running';
+      const cls=st==='completed'?'ok':st==='failed'?'er':'wa';
+      return `<div class="sbt" data-st="${t.id}" role="button" tabindex="0">
+        <span class="dot ${cls}${st==='running'?' live':''}"></span>
+        <span class="sbt-t">${esc(t.title||t.prompt)}</span>
+        ${st==='running'?'<span class="ring"></span>':''}</div>`}).join('')
+    +`<div class="sbt" data-all role="button" tabindex="0" style="color:var(--ac)"><span class="dot live"></span><span class="sbt-t">All tasks</span>${I('chev','i s')}</div>`;
+  w.querySelectorAll('[data-st]').forEach(r=>r.onclick=()=>openTaskDetail(r.dataset.st));
+  const all=w.querySelector('[data-all]');if(all)all.onclick=()=>openTasks();
 }
 function paintTasksBadge(){
   const b=$('#bTasks');if(!b)return;
@@ -2970,6 +3003,13 @@ async function openHomeView(){
   homeEl.querySelector('#hvClose').onclick=closeHome;
   homeEl.querySelectorAll('[data-hnav]').forEach(b=>b.onclick=()=>{closeHome();navTo(b.dataset.hnav)});
   setTimeout(()=>ta.focus(),60);
+  try{const seed=JSON.parse(sessionStorage.getItem('fs.seedTask')||'null');
+    if(seed){sessionStorage.removeItem('fs.seedTask');
+      if(seed.prompt){ta.value=seed.prompt;ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,220)+'px'}
+      if(seed.kind){kind=seed.kind;homeEl.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.kind===seed.kind)))}
+      ta.focus();toast('Task is staged — press Start task to launch Forge.',{type:'in',timeout:4200});
+    }
+  }catch{}
   await taskList();renderHomeTasks();
 }
 function closeHome(){
