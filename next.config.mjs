@@ -2,7 +2,7 @@
 const nextConfig = {
   poweredByHeader: false,
   async rewrites() {
-    return [{ source: '/studio', destination: '/studio.html' }];
+    return [{ source: '/studio', destination: '/index.html' }];
   },
 };
 
