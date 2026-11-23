@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light" data-accent="pine" data-density="cozy">
+<html lang="en" data-theme="dark" data-accent="pine" data-density="cozy">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#0C0D0F"/>
 <meta name="description" content="Forge Studio — agentic workspace. URL-only connectors, real MCP, auto-approved tool calls, Manus-style agent console."/>
 <title>Forge Studio</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231F5E52'/%3E%3Cpath d='M11 22V10h9M11 16h6.5' stroke='%23fff' stroke-width='2.3' fill='none'/%3E%3C/svg%3E"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script>try{var p=JSON.parse(localStorage.getItem('fs.prefs')||'{}');var r=document.documentElement;if(p.theme)r.dataset.theme=p.theme;if(p.accent)r.dataset.accent=p.accent;if(p.density)r.dataset.density=p.density;}catch(e){}</script>
+<script>try{var p=JSON.parse(localStorage.getItem('fs.prefs')||'{}');if(!p.ui2){p.ui2=2;p.theme='dark';try{localStorage.setItem('fs.prefs',JSON.stringify(p))}catch(_){}}var r=document.documentElement;if(p.theme)r.dataset.theme=p.theme;if(p.accent)r.dataset.accent=p.accent;if(p.density)r.dataset.density=p.density;}catch(e){}</script>
 <style>
 :root{
   --ui:'Instrument Sans',system-ui,-apple-system,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
@@ -508,7 +509,68 @@ html[data-focus=on] .rail,html[data-focus=on] .sidebar,html[data-focus=on] .pane
 html[data-focus=on] .shell{grid-template-columns:minmax(0,1fr);padding-bottom:0}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
-<style>#fxConns{position:fixed;top:0;right:0;width:460px;max-width:94vw;height:100vh;background:var(--bg,#fff);z-index:99;box-shadow:-18px 0 50px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}#fxConns .hd{display:flex;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(127,127,127,.2)}#fxConns .bd{flex:1;overflow:auto;padding:12px 14px}#fxConns .row{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid rgba(127,127,127,.12)}#fxConns .ic{width:28px;height:28px;border-radius:8px;background:rgba(31,94,82,.12);display:grid;place-items:center;font-weight:700;color:#1F5E52}#fxConns .mi{flex:1;min-width:0;display:flex;flex-direction:column}#fxConns .mi span{font-size:11.5px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#fxConns .st{font-size:10.5px;padding:3px 8px;border-radius:99px;background:rgba(127,127,127,.14);white-space:nowrap}#fxConns .st.ok{background:rgba(48,164,108,.18);color:#2c9c68}#fxConns .cg{margin-bottom:8px}#fxConns .cg summary{cursor:pointer;font-weight:600;padding:6px 2px;font-size:13px}#fxConns .cx{margin-bottom:8px}#fxConns input{padding:7px 10px;border:1px solid rgba(127,127,127,.35);border-radius:8px;background:transparent;color:inherit}#fxConns .vx{display:flex;gap:6px;margin-bottom:10px}#fxConns .vx input{flex:1;min-width:0}#fxConns .val{font-size:11px;opacity:.6;letter-spacing:1px}</style></head>
+<style>#fxConns{position:fixed;top:0;right:0;width:460px;max-width:94vw;height:100vh;background:var(--bg,#fff);z-index:99;box-shadow:-18px 0 50px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}#fxConns .hd{display:flex;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(127,127,127,.2)}#fxConns .bd{flex:1;overflow:auto;padding:12px 14px}#fxConns .row{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid rgba(127,127,127,.12)}#fxConns .ic{width:28px;height:28px;border-radius:8px;background:rgba(31,94,82,.12);display:grid;place-items:center;font-weight:700;color:#1F5E52}#fxConns .mi{flex:1;min-width:0;display:flex;flex-direction:column}#fxConns .mi span{font-size:11.5px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#fxConns .st{font-size:10.5px;padding:3px 8px;border-radius:99px;background:rgba(127,127,127,.14);white-space:nowrap}#fxConns .st.ok{background:rgba(48,164,108,.18);color:#2c9c68}#fxConns .cg{margin-bottom:8px}#fxConns .cg summary{cursor:pointer;font-weight:600;padding:6px 2px;font-size:13px}#fxConns .cx{margin-bottom:8px}#fxConns input{padding:7px 10px;border:1px solid rgba(127,127,127,.35);border-radius:8px;background:transparent;color:inherit}#fxConns .vx{display:flex;gap:6px;margin-bottom:10px}#fxConns .vx input{flex:1;min-width:0}#fxConns .val{font-size:11px;opacity:.6;letter-spacing:1px}</style>
+<style id="reskin">
+/* ═══════════ FORGE RESKIN v2 — depth, accent lighting, refined chat ═══════════ */
+html[data-theme=light]{
+  --bg:#F1EFEA;--surface:#FFFFFF;--surface2:#FBFAF7;--surface3:#F1EFE9;--surface4:#E6E4DD;
+  --line:#E3E1DA;--line2:#CFCCC3;
+}
+html[data-theme=dark]{
+  --bg:#0C0D0F;--surface:#141518;--surface2:#1B1D21;--surface3:#24262B;--surface4:#2E3137;
+  --line:#282A2F;--line2:#3A3D45;
+}
+.main{background:
+  radial-gradient(1100px 480px at 50% -140px,color-mix(in srgb,var(--ac) 10%,transparent),transparent 65%),
+  radial-gradient(800px 420px at 88% 114%,color-mix(in srgb,var(--ac) 6%,transparent),transparent 60%),
+  var(--bg)}
+.bar{background:color-mix(in srgb,var(--surface) 76%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.rail{background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(16px)}
+.ttl{font-weight:600;letter-spacing:-.01em}
+.greet h1{letter-spacing:-.03em}
+.greet h1 em{background:linear-gradient(94deg,var(--ac),var(--ac-hi));-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:2px}
+.thread{gap:26px;padding:26px 20px 30px}
+.msg{gap:7px}
+.msg .mhead{font-size:.6563rem;letter-spacing:.13em;color:var(--tx3)}
+.msg .mhead .i{width:15px;height:15px}
+.ubody{background:linear-gradient(165deg,color-mix(in srgb,var(--ac) 13%,var(--surface)),color-mix(in srgb,var(--ac) 5%,var(--surface)));
+  border:1px solid color-mix(in srgb,var(--ac) 20%,transparent);border-radius:20px 20px 7px 20px;
+  padding:12px 16px;box-shadow:0 1px 2px color-mix(in srgb,var(--ac) 8%,transparent)}
+.abody{gap:10px}
+.mmeta{gap:6px;margin-top:1px}
+.mmeta .tag{border-radius:999px;padding:3px 9px;background:var(--surface);box-shadow:var(--sh1)}
+.toolcard{border-radius:12px;transition:border-color var(--t)}
+.toolcard:hover{border-color:var(--ac-line)}
+.composer{border-radius:24px;border-color:var(--line2);padding:13px 14px 10px;
+  box-shadow:0 2px 6px rgba(0,0,0,.06),0 22px 60px rgba(0,0,0,.12)}
+.composer.focus{border-color:var(--ac);box-shadow:0 0 0 3.5px color-mix(in srgb,var(--ac) 16%,transparent),0 22px 60px rgba(0,0,0,.12)}
+.send{background:linear-gradient(140deg,var(--ac),var(--ac-hi));border-color:transparent;box-shadow:0 3px 12px color-mix(in srgb,var(--ac) 40%,transparent)}
+.send:hover:not(:disabled){background:linear-gradient(140deg,var(--ac-hi),var(--ac))}
+.send:disabled{box-shadow:none;opacity:.3}
+.mchip{background:var(--surface2)}
+.rbtn{border-radius:12px}
+.rbtn.on{background:var(--ac-bg);border-color:color-mix(in srgb,var(--ac) 34%,transparent);color:var(--ac);
+  box-shadow:0 0 16px color-mix(in srgb,var(--ac) 20%,transparent)}
+.crow{border-radius:11px;padding:9px 10px;transition:background var(--t)}
+.crow.on{background:var(--ac-bg);border-color:color-mix(in srgb,var(--ac) 26%,transparent)}
+.crow.on .ctitle{font-weight:600}
+.seg{border-radius:999px;background:var(--surface2)}
+.seg button{border-radius:999px}
+.btn{border-radius:11px}
+.chip{transition:border-color var(--t),color var(--t),background var(--t)}
+.chip[aria-pressed=true]{border-color:var(--ac-line);color:var(--ac);background:var(--ac-bg)}
+.toast{border-radius:14px}
+.hcard{border-radius:16px;transition:transform var(--t),box-shadow var(--t),border-color var(--t)}
+.hcard:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--ac-line)}
+.ab-orb{box-shadow:0 0 14px color-mix(in srgb,var(--ac) 35%,transparent)}
+@media (max-width:760px){
+  .thread{padding:16px 13px 22px;gap:20px}
+  .ubody{max-width:90%;border-radius:18px 18px 6px 18px}
+  .composer{border-radius:20px;padding:11px 12px 9px}
+  .bar{background:color-mix(in srgb,var(--surface) 90%,transparent)}
+  .greet h1{font-size:1.45rem}
+}
+</style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
@@ -875,7 +937,7 @@ const DIR_CATS=[{id:'all',n:'All endpoints',i:'layers'},{id:'cloudflare',n:'Clou
 
 /* ══ STATE ══ */
 const SYS_DEFAULT='You are Forge, a senior engineering agent working inside a project. Use tools aggressively when they help; verify before asserting. Give complete runnable code in fenced blocks with language tags — never truncate a file you start. State root cause before fix. Be direct, no filler.';
-const DEF_PREF={theme:'light',accent:'pine',density:'cozy',panel:'closed',panelTab:'run',mode:'auto',workMode:'agent',tts:false,voice:'',rate:1,pitch:1,
+const DEF_PREF={theme:'dark',accent:'pine',density:'cozy',panel:'closed',panelTab:'run',mode:'auto',workMode:'agent',tts:false,voice:'',rate:1,pitch:1,
   autoSpeak:false,stream:true,maxTok:0,hist:30,temp:.6,toolLoops:8,workerUrl:'',workerToken:'',sort:'recent',starOnly:false,allProjects:false,
   focus:false,autoApprove:true,consoleOpen:false,consoleTab:'term'};
 let PF={...DEF_PREF,...rd(LS.p,{})};
