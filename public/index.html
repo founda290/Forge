@@ -1926,7 +1926,7 @@ function openPlus(anchor){
     pmEl.querySelector('#pmApprove').setAttribute('aria-checked',String(PF.autoApprove))};
   pmEl.querySelector('#pmAddCon').onclick=()=>{closePlus();openConnectors('all')};
   pmEl.querySelector('#pmConsole').onclick=()=>{closePlus();toggleConsole(true)};
-  paint();setTimeout(()=>pmEl.querySelector('#pmQ').focus(),40);
+  paint();setTimeout(()=>{if(matchMedia('(hover:hover) and (pointer:fine)').matches)pmEl.querySelector('#pmQ').focus()},40);
   setTimeout(()=>document.addEventListener('pointerdown',pmOutside),0);
 }
 function pmOutside(e){if(pmEl&&!pmEl.contains(e.target)&&!e.target.closest('#btnPlus')){closePlus();document.removeEventListener('pointerdown',pmOutside)}}
@@ -1965,7 +1965,7 @@ $('#btnPanel').onclick=()=>{root.dataset.panel==='open'?closePanel():openPanel()
 $('#pClose').onclick=closePanel;
 $('#scrim2').onclick=()=>{closeSidebar();if(mqTablet.matches&&root.dataset.panel==='open')closePanel();syncScrim()};
 $('#focusExit').onclick=()=>{PF.focus=false;root.dataset.focus='off';savePF();syncScrim()};
-function applyViewport(){if(!mqMobile.matches)$('#sidebar').classList.remove('on');syncScrim();grow();if(pmEl)closePlus()}
+function applyViewport(){if(!mqMobile.matches)$('#sidebar').classList.remove('on');syncScrim();grow()}
 mqTablet.addEventListener('change',applyViewport);mqMobile.addEventListener('change',applyViewport);
 window.addEventListener('resize',deb(applyViewport,140));
 function visibleChats(){
@@ -2690,7 +2690,7 @@ function openWorker(){
 }
 function openSettings(){
   const m=modal({title:'Settings',icon:'gear',size:'lg',
-    tabs:[{id:'look',n:'Appearance',i:'palette'},{id:'gen',n:'Generation',i:'cpu'},{id:'voice',n:'Voice',i:'vol'},{id:'data',n:'Data',i:'db'}],
+    tabs:[{id:'look',n:'Appearance',i:'palette'},{id:'gen',n:'Generation',i:'cpu'},{id:'voice',n:'Voice',i:'vol'},{id:'data',n:'Data',i:'db'},{id:'cloud',n:'Cloud',i:'cloud'}],
     body:`<div id="stBody"></div>`,foot:`<span>Forge Studio · everything local</span><span class="sp"></span><button class="btn p" data-cl>Done</button>`});
   m.el.querySelector('[data-cl]').onclick=()=>m.close();
   const box=m.el.querySelector('#stBody');let tab='look';
@@ -2732,6 +2732,17 @@ function openSettings(){
       box.querySelector('#vAuto').onclick=()=>{PF.autoSpeak=!PF.autoSpeak;savePF();paint()};
       box.querySelector('#vTest').onclick=()=>speak('Forge Studio ready. Tools armed and auto-approved.');
       box.querySelector('#vStop').onclick=()=>speechSynthesis.cancel();
+    }else if(tab==='cloud'){
+      const Fx=window.__forge||{};
+      box.innerHTML=`<div class="card"><b>${I('cloud')}Forge Cloud</b><p class="help">Account, workspace sync, usage, webhooks and the Cloudflare worker gateway in one place.</p>
+        <button class="btn" id="stSync">${I('cloud')}Open cloud panel</button></div>
+        <div class="card"><b>${I('play')}Background runs</b><p class="help">Queue agent jobs that keep running in the worker after you close the browser. Also available via /bg and /jobs.</p>
+        <button class="btn" id="stJobs">${I('play')}Open background runs</button></div>
+        <div class="card"><b>${I('link')}Connectors &amp; vault</b><p class="help">Marketplace connectors, API keys and the encrypted vault. Also available via /connect and /vault.</p>
+        <button class="btn" id="stConns">${I('link')}Open connectors</button></div>`;
+      box.querySelector('#stSync').onclick=()=>Fx.openSync?Fx.openSync():toast('Sync module still loading — try again in a second.',{type:'wa'});
+      box.querySelector('#stJobs').onclick=()=>Fx.openBgJobs?Fx.openBgJobs():toast('Background-jobs module still loading — try again in a second.',{type:'wa'});
+      box.querySelector('#stConns').onclick=()=>Fx.openConnMarket?Fx.openConnMarket():toast('Connectors module still loading — try again in a second.',{type:'wa'});
     }else{
       let kb=0;try{kb=Math.round(new Blob([JSON.stringify(S)]).size/1024)}catch{}
       box.innerHTML=`<div class="stats"><div class="stat"><b>${S.projects.length}</b><span>projects</span></div><div class="stat"><b>${S.chats.length}</b><span>chats</span></div>
@@ -3069,14 +3080,8 @@ const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{'Content-Type':'a
 const logIn=(t,u)=>{Cloud.token=t;Cloud.email=u.email;Cloud.uid=u.id;Cwr(CK,Cloud)};
 const copy=async t=>{try{await navigator.clipboard.writeText(t);return true}catch{return false}};
 
-/* floating entry */
-const btn=document.createElement('button');
-btn.textContent='☁ Sync';
-Object.assign(btn.style,{position:'fixed',left:'10px',bottom:'62px',zIndex:2147483000,fontFamily:'var(--ui,sans-serif)',fontSize:'12px',fontWeight:600,color:'var(--tx,#111)',background:'var(--surface,#fff)',border:'1px solid var(--line,#ddd)',borderRadius:'999px',padding:'6px 12px',cursor:'pointer',boxShadow:'var(--sh2,0 2px 8px rgba(0,0,0,.08))',display:'none'});
-document.body.appendChild(btn);
 const cloudOn=()=>!!Cloud.token;
-const paintBtn=()=>{btn.style.display=location.protocol.startsWith('http')?'block':'none';btn.textContent=cloudOn()?'☁ '+(Cloud.email.split('@')[0]||''):'☁ Sync';btn.title=cloudOn()?'Forge Cloud · signed in · click to sync':'Forge Cloud · sign in'};
-paintBtn();
+const paintBtn=()=>{};
 
 /* fetch wrapper → records real usage from chat responses when signed in */
 const origFetch=window.fetch.bind(window);
@@ -3259,9 +3264,8 @@ function paintBody(tab){
     body.querySelector('#wkOff').onclick=()=>{Cwr('fs.prefs',{...prefs,workerUrl:'',workerToken:''});note('ok','Proxy disabled — reloading…');setTimeout(()=>location.reload(),600)};
   }
 }
-btn.onclick=()=>openOv('account');
+if(window.__forge)window.__forge.openSync=()=>openOv('account');
 if(localStorage.getItem('fs.autoSync')==='1'&&cloudOn())pushState(true);
-onpageshow=paintBtn;
 </script>
 <!-- FORGE PRO runtime styles (Codex/Claude-Code skin layer) -->
 <style id="fxStyle">
@@ -3608,13 +3612,7 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
-/* header chip */
-const chip = document.createElement('button');
-chip.className = 'btn q ic'; chip.title = 'Background runs'; chip.setAttribute('aria-label', 'Background runs');
-chip.innerHTML = '<svg class="i"><use href="#i-clock"/></svg>';
-chip.onclick = jobsPane;
-const barR = document.querySelector('.bar-r');
-if (barR) barR.prepend(chip);
+if (window.__forge) window.__forge.openBgJobs = jobsPane;
 </script>
 <script type="module">
 /* FORGE PRO - connector marketplace + vault (nothing sensitive stays on the device) */
@@ -3706,11 +3704,7 @@ document.addEventListener('keydown', (e) => {
     panel();
   }
 }, true);
-const chip = document.createElement('button'); chip.className = 'btn q ic'; chip.title = 'Connectors'; chip.setAttribute('aria-label', 'Connectors');
-chip.innerHTML = '<svg class=\"i\"><use href=\"#i-link\"/></svg>';
-chip.onclick = () => { tab = 'conns'; if (pane) { pane.remove(); pane = null; } else panel(); };
-const barR = document.querySelector('.bar-r');
-if (barR) barR.prepend(chip);
+if (window.__forge) window.__forge.openConnMarket = () => { tab = 'conns'; pane ? (pane.remove(), pane = null) : panel(); };
 </script>
 </body>
 </html>
