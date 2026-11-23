@@ -27,7 +27,26 @@ async function runJobs(env){
   const keep=l.filter(x=>!(x.finished&&Date.now()-new Date(x.finished).getTime()>6048e5));
   if(keep.length!==l.length)await env.FORGE_KV.put('jobs',JSON.stringify(keep));
 }
-export default{async scheduled(ctrl,env,ctx){ctx.waitUntil(runJobs(env))},async fetch(req,env){
+async function tickAutomations(env){
+  if(!env.FORGE_KV)return;
+  const load=async k=>JSON.parse((await env.FORGE_KV.get(k))||'[]');
+  const a=await load('automations');const jobs=await load('jobs');
+  let changed=false;const now=Date.now();
+  for(const x of a){
+    if(!x.enabled)continue;
+    const iv=Math.max(5,(x.intervalMin||60))*60000;
+    if(x.lastRun&&now-new Date(x.lastRun).getTime()<iv)continue;
+    x.lastRun=new Date().toISOString();changed=true;
+    jobs.push({id:'j'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),status:'queued',
+      name:'['+(x.name||'automation')+'] '+(x.prompt||'').slice(0,50),prompt:String(x.prompt||'').slice(0,12000),
+      model:String(x.model||'').slice(0,120),base:String(x.base||'').slice(0,300),
+      system:String(x.system||'You are Forge, an autonomous background agent. Complete the task fully, then output the final result.').slice(0,4000),
+      key:String(x.key||'').slice(0,400),created:new Date().toISOString()});
+  }
+  if(jobs.length>60)jobs.splice(0,jobs.length-60);
+  if(changed){await env.FORGE_KV.put('automations',JSON.stringify(a));await env.FORGE_KV.put('jobs',JSON.stringify(jobs.slice(-60)))}
+}
+export default{async scheduled(ctrl,env,ctx){ctx.waitUntil(runJobs(env));ctx.waitUntil(tickAutomations(env))},async fetch(req,env){
   if(req.method==='OPTIONS')return new Response(null,{headers:CORS});
   const url=new URL(req.url),ip=req.headers.get('cf-connecting-ip')||'anon';
   if((url.pathname==='/v1/chat/completions'||url.pathname==='/fetch')&&limited(ip))return json({error:'rate limited'},429);
@@ -86,5 +105,24 @@ export default{async scheduled(ctrl,env,ctx){ctx.waitUntil(runJobs(env))},async 
       if(req.method==='DELETE'){const id=url.searchParams.get('id');const l=await load();const n=l.filter(x=>x.id!==id);await env.FORGE_KV.put('jobs',JSON.stringify(n));return json({ok:true,removed:l.length-n.length})}
       return json({error:'method not allowed'},405)}
     if(url.pathname==='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync','/jobs']});
+    if(url.pathname==='/automations'){if(!env.FORGE_KV)return json({error:'bind FORGE_KV'},400);
+      const loadA=async()=>JSON.parse((await env.FORGE_KV.get('automations'))||'[]');
+      const mask=a=>({...a,key:a.key?'***':''});
+      if(req.method==='POST'){const b=await req.json();
+        if(!b.prompt||!b.model||!b.base)return json({error:'model, base, prompt required'},400);
+        const rec={id:b.id||('a'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+          name:String(b.name||'Automation').slice(0,100),prompt:String(b.prompt).slice(0,12000),
+          intervalMin:Math.max(5,+b.intervalMin||60),model:String(b.model).slice(0,120),base:String(b.base).slice(0,300),
+          system:String(b.system||'').slice(0,4000),key:String(b.key||'').slice(0,400),
+          enabled:b.enabled!==false,created:new Date().toISOString(),lastRun:null};
+        const l=await loadA();const i=l.findIndex(x=>x.id===rec.id);if(!b.key&&i>=0)rec.key=l[i].key||'';
+        if(i>=0)l[i]={...l[i],...rec,lastRun:l[i].lastRun};else l.push(rec);
+        await env.FORGE_KV.put('automations',JSON.stringify(l.slice(-40)));
+        return json({ok:true,automation:mask(rec)})}
+      if(req.method==='GET')return json({automations:(await loadA()).map(mask).reverse()});
+      if(req.method==='DELETE'){const id=url.searchParams.get('id');const l=await loadA();const n=l.filter(x=>x.id!==id);
+        await env.FORGE_KV.put('automations',JSON.stringify(n));return json({ok:true,removed:l.length-n.length})}
+      return json({error:'method not allowed'},405)}
+    if(url.pathname=='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync','/jobs','/automations']});
     return json({error:'not found'},404);
   }catch(e){return json({error:String(e&&e.message||e)},500)}}};

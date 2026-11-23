@@ -697,6 +697,7 @@ html[data-theme=dark]{
     <button class="rbtn" data-nav="connectors" title="Connectors — paste a URL" aria-label="Connectors"><svg class="i l"><use href="#i-plug"/></svg><span class="badge" id="bCon" hidden>0</span></button>
     <button class="rbtn" data-nav="agents" title="Agent & subagents" aria-label="Agents"><svg class="i l"><use href="#i-agent"/></svg></button>
     <button class="rbtn" data-nav="skills" title="Skills" aria-label="Skills"><svg class="i l"><use href="#i-skill"/></svg><span class="badge" id="bSkills" hidden>0</span></button>
+    <button class="rbtn" data-nav="knowledge" title="Knowledge — files, snippets, project memory" aria-label="Knowledge"><svg class="i l"><use href="#i-book"/></svg></button>
     <button class="rbtn" data-nav="providers" title="Gateways & keys" aria-label="Providers"><svg class="i l"><use href="#i-key"/></svg></button>
     <button class="rbtn" data-nav="visuals" title="Visual studio" aria-label="Visuals"><svg class="i l"><use href="#i-palette"/></svg></button>
     <button class="rbtn" data-nav="console" title="Agent console" aria-label="Console"><svg class="i l"><use href="#i-term"/></svg></button>
@@ -2689,18 +2690,57 @@ function openVisuals(){
 
 function openWorker(){
   const m=modal({title:'Forge gateway',icon:'worker',size:'lg',
-    body:`<div class="note in">${I('info')}<span>Route provider and MCP calls through your Cloudflare Worker gateway. Keys never leave this browser — provider calls are proxied server-side. Set <code>FORGE_TOKEN</code> on the Worker so only this app can use it.</span></div>
+    tabs:[{id:'gw',n:'Gateway',i:'worker'},{id:'auto',n:'Automations',i:'auto'}],
+    body:'<div id="wPane"></div>',
+    foot:`<span></span><span class="sp"></span><button class="btn p" id="wSave">${I('check')}Save</button>`});
+  const pane=m.el.querySelector('#wPane'),saveBtn=m.el.querySelector('#wSave');
+  let tab='gw';
+  const gwUrl=()=>(PF.workerUrl||'https://forge-gateway.legateakanjimusab.workers.dev').replace(/\/+$/,'');
+  const paintGw=()=>{
+    pane.innerHTML=`<div class="note in">${I('info')}<span>Route provider and MCP calls through your Cloudflare Worker gateway. Keys never leave this browser — provider calls are proxied server-side. Set <code>FORGE_TOKEN</code> on the Worker so only this app can use it.</span></div>
       <div class="field"><label class="lbl">Gateway URL</label><input type="text" id="wUrl" value="${esc(PF.workerUrl||'https://forge-gateway.legateakanjimusab.workers.dev')}"/></div>
       <div class="field"><label class="lbl">Forge token</label><input type="password" id="wTok" value="${esc(PF.workerToken)}"/></div>
-      <div class="line"><button class="btn p" id="wTest">${I('refresh')}Test connection</button><button class="btn" id="wOff">Use direct mode</button></div><div id="wNote"></div>`,
-    foot:`<span></span><span class="sp"></span><button class="btn p" id="wSave">${I('check')}Save</button>`});
-  m.el.querySelector('#wTest').onclick=async()=>{const u=m.el.querySelector('#wUrl').value.trim().replace(/\/+$/,'');
-    if(!u){toast('Enter the gateway URL.',{type:'wa'});return}
-    try{const r=await fetch(u+'/',{headers:{'x-forge-token':m.el.querySelector('#wTok').value.trim()},signal:AbortSignal.timeout(10000)});
-      m.el.querySelector('#wNote').innerHTML=`<div class="note ok">${I('check')}<span>${esc(JSON.stringify(await r.json()))}</span></div>`}
-    catch(e){m.el.querySelector('#wNote').innerHTML=`<div class="note er">${I('alert')}<span>${esc(e.message)}</span></div>`}};
-  m.el.querySelector('#wOff').onclick=()=>{PF.workerUrl='';PF.workerToken='';savePF();m.el.querySelector('#wUrl').value='';m.el.querySelector('#wTok').value='';paintState();toast('Direct mode restored.',{type:'ok'})};
-  m.el.querySelector('#wSave').onclick=()=>{PF.workerUrl=m.el.querySelector('#wUrl').value.trim();PF.workerToken=m.el.querySelector('#wTok').value.trim();
+      <div class="line"><button class="btn p" id="wTest">${I('refresh')}Test connection</button><button class="btn" id="wOff">Use direct mode</button></div><div id="wNote"></div>`;
+    pane.querySelector('#wTest').onclick=async()=>{const u=pane.querySelector('#wUrl').value.trim().replace(/\/+$/,'');
+      if(!u){toast('Enter the gateway URL.',{type:'wa'});return}
+      try{const r=await fetch(u+'/',{headers:{'x-forge-token':pane.querySelector('#wTok').value.trim()},signal:AbortSignal.timeout(10000)});
+        pane.querySelector('#wNote').innerHTML=`<div class="note ok">${I('check')}<span>${esc(JSON.stringify(await r.json()))}</span></div>`}
+      catch(e){pane.querySelector('#wNote').innerHTML=`<div class="note er">${I('alert')}<span>${esc(e.message)}</span></div>`}};
+    pane.querySelector('#wOff').onclick=()=>{PF.workerUrl='';PF.workerToken='';savePF();m.close();paintState();toast('Direct mode restored.',{type:'ok'})};
+  };
+  const paintAuto=async()=>{
+    pane.innerHTML=`<div class="note in">${I('info')}<span>Scheduled automations run on the Worker's minute cron — each fires a one-shot prompt with your model, base and key; the result lands in Background jobs. They run even when Forge Studio is closed.</span></div>
+      <div class="field"><label class="lbl">Name</label><input type="text" id="aName" placeholder="Morning market brief"/></div>
+      <div class="field"><label class="lbl">Prompt</label><textarea rows="3" id="aPrompt" placeholder="Summarize today's top AI headlines…"></textarea></div>
+      <div class="grid g2"><div class="field"><label class="lbl">Model</label><input type="text" id="aModel" placeholder="${esc(S.activeModel||'model-id')}"/></div>
+      <div class="field"><label class="lbl">Interval — minutes (min 5)</label><input type="number" id="aIv" value="60" min="5"/></div></div>
+      <div class="field"><label class="lbl">API base</label><input type="text" id="aBase" placeholder="https://openrouter.ai/api"/></div>
+      <div class="field"><label class="lbl">API key</label><input type="password" id="aKey"/></div>
+      <button class="btn p" id="aGo">${I('plus','i s')}Schedule automation</button>
+      <div id="aList" class="con-scroll" style="margin-top:12px"><p class="help">Loading…</p></div>`;
+    pane.querySelector('#aGo').onclick=async()=>{
+      const body={name:pane.querySelector('#aName').value.trim()||'Automation',prompt:pane.querySelector('#aPrompt').value.trim(),
+        intervalMin:+pane.querySelector('#aIv').value||60,model:pane.querySelector('#aModel').value.trim()||S.activeModel||'',
+        base:pane.querySelector('#aBase').value.trim(),key:pane.querySelector('#aKey').value.trim()};
+      if(!body.prompt||!body.model||!body.base)return toast('Prompt, model and API base are required.',{type:'wa'});
+      try{const r=await fetch(gwUrl()+'/automations',{method:'POST',headers:{'Content-Type':'application/json','x-forge-token':PF.workerToken},body:JSON.stringify(body)});
+        const d=await r.json();if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+        toast('Automation scheduled — first run on the next cron tick.',{type:'ok'});paintAuto()}catch(e){toast('Could not schedule: '+e.message,{type:'er'})}};
+    try{
+      const r=await fetch(gwUrl()+'/automations',{headers:{'x-forge-token':PF.workerToken},signal:AbortSignal.timeout(10000)});
+      const d=await r.json();const L=pane.querySelector('#aList');if(!L)return;
+      const list=Array.isArray(d.automations)?d.automations:[];
+      L.innerHTML=list.length?list.map(a=>`<div class="steprow"><span class="sn">${I('auto')}</span><span class="si"><b>${esc(a.name||'Automation')}</b><small>every ${esc(String(a.intervalMin||60))} min · ${a.lastRun?'last run '+hhmm(new Date(a.lastRun).getTime()):'not run yet'}</small></span><span style="display:flex;gap:4px">${a.enabled?'<span class="tag ok">on</span>':'<span class="tag">off</span>'}<button class="btn q ic" data-ax="${esc(a.id)}" title="Delete">${I('trash')}</button></span></div>`).join('')
+        :'<p class="help">No automations yet — schedule one above.</p>';
+      L.querySelectorAll('[data-ax]').forEach(b=>b.onclick=async()=>{
+        if(!await confirmModal({title:'Delete automation?',body:'It will stop firing on the next cron tick.'}))return;
+        try{await fetch(gwUrl()+'/automations?id='+encodeURIComponent(b.dataset.ax),{method:'DELETE',headers:{'x-forge-token':PF.workerToken}});paintAuto()}catch(e){toast(e.message,{type:'er'})}});
+    }catch(e){const L=pane.querySelector('#aList');if(L)L.innerHTML=`<p class="help">Automations need the worker gateway and token (${esc(e.message)}).</p>`}
+  };
+  const paint=()=>{saveBtn.hidden=tab!=='gw';tab==='gw'?paintGw():paintAuto()};
+  paint();
+  m.onTab=t=>{tab=t;paint()};
+  saveBtn.onclick=()=>{if(tab!=='gw')return;PF.workerUrl=pane.querySelector('#wUrl').value.trim();PF.workerToken=pane.querySelector('#wTok').value.trim();
     savePF();paintState();paintFoot();m.close();toast(workerOn()?'Gateway active.':'Saved.',{type:'ok'})};
 }
 function openSettings(){
@@ -2802,6 +2842,8 @@ const COMMANDS=[
  {n:'Projects',i:'folder',f:openProjects},
  {n:'Agent configuration',i:'agent',f:openAgents},
  {n:'Skills',i:'skill',f:openSkills},
+ {n:'Knowledge — files, snippets, memory',i:'book',f:openKnowledge},
+ {n:'Automations — scheduled agent jobs',i:'auto',f:openWorker},
  {n:'Visual studio',i:'palette',f:openVisuals},
  {n:'Cloudflare Worker',i:'worker',f:openWorker},
  {n:'Settings',i:'gear',k:'Ctrl+,',f:openSettings},
@@ -2858,7 +2900,7 @@ function navTo(v){
   if(v==='tasks'){openTasks();return}
   if(v==='chats'){openSidebar();return}
   if(v==='console'){toggleConsole();return}
-  ({projects:openProjects,agents:openAgents,skills:openSkills,connectors:()=>openConnectors('all'),
+  ({projects:openProjects,agents:openAgents,skills:openSkills,knowledge:openKnowledge,connectors:()=>openConnectors('all'),
     providers:openProviders,visuals:openVisuals,worker:openWorker,settings:openSettings,palette:openPalette})[v]?.();
 }
 $$('.rbtn').forEach(b=>b.onclick=()=>navTo(b.dataset.nav));
@@ -2913,7 +2955,7 @@ async function taskFetch(path='',opts={}){
   return d;
 }
 async function taskPatch(id,body){try{const r=await fetch('/api/tasks/'+id,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+cloudTok()},body:JSON.stringify(body)});if(r.status===401||r.status===404)TASK.id=''}catch{}}
-function pubTaskEvent(type,payload={}){if(!TASK.id)return;taskPatch(TASK.id,{event:{type,payload}})}
+function pubTaskEvent(type,payload={}){if(!TASK.id)return;taskPatch(TASK.id,{event:{type,payload},steps:turnSteps.slice(-100)})}
 function pubTaskStatus(s){if(!TASK.id)return;const now=Date.now();if(now-taskPulse<1500)return;taskPulse=now;pubTaskEvent('status',{step:s})}
 function pubTaskRun(){taskPulse=Date.now();pubTaskEvent('run',{})}
 function pubTaskStep(st){if(!TASK.id)return;pubTaskEvent('step',st||null)}
@@ -2989,6 +3031,7 @@ async function openHomeView(){
     <div><div class="hv-sec">Quick links</div><div class="hv-chips" style="margin-top:12px">
       <button class="chip" data-hnav="projects">${I('folder')}<span>Projects</span></button>
       <button class="chip" data-hnav="skills">${I('skill')}<span>Skills</span></button>
+      <button class="chip" data-hnav="knowledge">${I('book')}<span>Knowledge</span></button>
       <button class="chip" data-hnav="providers">${I('key')}<span>Model &amp; gateway</span></button>
       <button class="chip" data-hnav="settings">${I('gear')}<span>Settings</span></button>
     </div></div>
@@ -3065,24 +3108,105 @@ function openTasks(){
 }
 async function openTaskDetail(id){
   const m=modal({title:'Task',icon:'agent',size:'lg',body:'<p class="help">Loading…</p>'});
+  m.onClose=()=>clearInterval(m._tick);
   let t;
   try{t=(await taskFetch('/'+id)).task}catch{
     if(m.el.isConnected)m.body.innerHTML='<p class="help">Task not found or no longer accessible.</p>';return}
   if(!m.el.isConnected)return;
-  const st=t.status||'running';
-  const cls=st==='completed'?'ok':st==='failed'?'er':st==='running'?'wa':'';
-  const steps=(t.steps||[]).map((s,i)=>`<div class="steprow"><span class="sn">${i+1}</span><span class="si"><b>${esc(s.name)}</b><small>${s.at?hhmm(s.at):''}${s.ms?' · '+s.ms+'ms':''}</small></span><span class="tag ${s.ok===false?'er':'ok'}">${s.ok===false?'fail':'ok'}</span></div>`).join('');
-  const sum=t.result?.summary?`<div class="hv-sec" style="margin:14px 0 8px">Result</div><div class="codeview"><pre>${esc(t.result.summary)}</pre></div>`:'';
-  const tCalls=t.result?.toolCalls?`<span class="tag in">${t.result.toolCalls} tool calls</span>`:'';
-  const mdl=t.model?`<span class="tag">${esc(t.model)}</span>`:'';
-  m.card.querySelector('.mhead b').textContent=t.title||t.prompt||'Task';
-  m.body.innerHTML=`<div class="con-scroll">
-    <div class="swrow"><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="tag ${cls}">${esc(st)}</span><span class="tag">${esc(kindOf(t.kind).n)}</span>${tCalls}${mdl}<span class="tag">${hhmm(new Date(t.updated_at||Date.now()).getTime())}</span></span>
-    <span style="flex:1"></span>${t.prompt?`<button class="btn q sm" data-tk="${t.id}">${I('refresh')}Run again</button>`:''}</div>
+  const paint=t=>{
+    if(!m.el.isConnected)return;
+    const st=t.status||'running';
+    const cls=st==='completed'?'ok':st==='failed'?'er':st==='running'?'wa':'';
+    const steps=(t.steps||[]).map((s,i)=>`<div class="steprow"><span class="sn">${i+1}</span><span class="si"><b>${esc(s.name)}</b><small>${s.at?hhmm(s.at):''}${s.ms?' · '+s.ms+'ms':''}</small></span><span class="tag ${s.ok===false?'er':'ok'}">${s.ok===false?'fail':'ok'}</span></div>`).join('');
+    const sum=t.result?.summary?`<div class="hv-sec" style="margin:14px 0 8px">Result</div><div class="codeview"><pre>${esc(t.result.summary)}</pre></div>`:'';
+    const tCalls=t.result?.toolCalls?`<span class="tag in">${t.result.toolCalls} tool calls</span>`:'';
+    const mdl=t.model?`<span class="tag">${esc(t.model)}</span>`:'';
+    m.card.querySelector('.mhead b').textContent=t.title||t.prompt||'Task';
+    m.body.innerHTML=`<div class="con-scroll">
+    <div class="swrow"><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="tag ${cls}">${esc(st)}</span>${st==='running'?'<span class="dot wa live"></span>':''}<span class="tag">${esc(kindOf(t.kind).n)}</span>${tCalls}${mdl}<span class="tag">${hhmm(new Date(t.updated_at||Date.now()).getTime())}</span></span>
+    <span style="flex:1"></span>${t.prompt?`<button class="btn q sm" data-tk="${esc(t.id)}">${I('refresh')}Run again</button>`:''}</div>
+    ${st==='running'?`<div class="note in" style="margin:10px 0">${I('info')}<span>Live — auto-refreshing while Forge works${TASK.id===t.id?' on this device':' from another device'}.</span></div>`:''}
     <div class="hv-sec" style="margin:14px 0 8px">Steps</div>
     ${steps||'<p class="help">No recorded steps.</p>'}${sum}</div>`;
-  const rb=m.body.querySelector('[data-tk]');
-  if(rb)rb.onclick=()=>{m.close();const t2=t;startTask(t2.prompt,t2.kind)};
+    const rb=m.body.querySelector('[data-tk]');
+    if(rb)rb.onclick=()=>{m.close();const t2=t;startTask(t2.prompt,t2.kind)};
+  };
+  paint(t);
+  if((t.status||'running')==='running')m._tick=setInterval(async()=>{
+    if(!m.el.isConnected){clearInterval(m._tick);return}
+    try{const d=await taskFetch('/'+id);if(d?.task){t=d.task;paint(t)}}catch{}
+  },3500);
+}
+function openKnowledge(){
+  const m=modal({title:'Knowledge',icon:'book',size:'lg',
+    tabs:[{id:'files',n:'Files',i:'file'},{id:'snips',n:'Snippets',i:'code'},{id:'memory',n:'Memory',i:'brain'},{id:'results',n:'Task results',i:'activity'}],
+    body:'<div id="kWrap"><p class="help">Loading…</p></div>',
+    foot:`<span>Project: ${esc(proj().name)}</span><span class="sp"></span><button class="btn" data-cl>Done</button>`});
+  m.el.querySelector('[data-cl]').onclick=()=>m.close();
+  let tab='files',q='';
+  const ph={files:'Search files',snips:'Search snippets',memory:'Search memory notes',results:'Filter tasks'};
+  const trow=(ic,title,sub,opts='')=>`<div class="steprow"><span class="sn">${I(ic)}</span><span class="si"><b>${esc(title)}</b><small>${sub}</small></span>${opts?`<span style="display:flex;gap:4px">${opts}</span>`:''}</div>`;
+  const paintList=()=>{
+    const L=m.el.querySelector('#kList');if(!L)return;
+    const nd=q.toLowerCase();let html='';
+    if(tab==='files'){
+      const fl=projectFiles().filter(f=>!nd||(f.name+(f.content||'')).toLowerCase().includes(nd));
+      html=fl.length?fl.map(f=>trow('file',f.name,bytes(f.size)+' · '+hhmm(new Date(f.createdAt||Date.now()).getTime()),
+        `<button class="btn q ic" data-kv="${esc(f.id)}" title="View">${I('eye')}</button><button class="btn q ic" data-kd="${esc(f.id)}" title="Download">${I('download')}</button><button class="btn q ic" data-kx="${esc(f.id)}" title="Delete">${I('trash')}</button>`)).join('')
+        :'<p class="help">No files in this project yet — the agent creates them as it works.</p>';
+    }else if(tab==='snips'){
+      const sl=S.snippets.filter(s=>!s.projectId||s.projectId===S.activeProject).filter(s=>!nd||((s.name||'')+(s.code||'')).toLowerCase().includes(nd));
+      html=sl.length?sl.map(s=>trow('code',s.name,(s.language||'text')+' · '+hhmm(new Date(s.createdAt||Date.now()).getTime()),
+        `<button class="btn q ic" data-kv="${esc(s.id)}" title="View">${I('eye')}</button><button class="btn q ic" data-kcp="${esc(s.id)}" title="Copy">${I('copy')}</button><button class="btn q ic" data-kx="${esc(s.id)}" title="Delete">${I('trash')}</button>`)).join('')
+        :'<p class="help">No snippets saved in this project.</p>';
+    }else if(tab==='memory'){
+      const notes=(proj().agent.knowledge||'').split('\n').map(x=>x.replace(/^-\s*/,'').trim()).filter(Boolean);
+      const vis=notes.map((n,i)=>({n,i})).filter(x=>!nd||x.n.toLowerCase().includes(nd));
+      html=`<div class="field"><label class="lbl">Durable facts the agent always knows in this project</label><textarea rows="2" id="kNote" placeholder="Add what Forge should always remember…"></textarea><div class="line" style="margin-top:6px"><button class="btn p" id="kAdd">${I('plus','i s')}Remember</button></div></div><div style="margin-top:12px">${
+        vis.length?vis.map(x=>trow('brain',x.n,'project memory',`<button class="btn q ic" data-km="${x.i}" title="Remove">${I('trash')}</button>`)).join('')
+        :'<p class="help">No memory yet — the remember tool and notes land here.</p>'}</div>`;
+    }else{
+      const tc=TASK_CACHE.filter(t=>!nd||String(t.title||t.prompt||'').toLowerCase().includes(nd));
+      html=tc.length?tc.map(t=>taskMetaRow(t)).join(''):'<p class="help">No tasks match.</p>';
+    }
+    L.innerHTML=html;
+    if(tab==='files'){
+      L.querySelectorAll('[data-kd]').forEach(b=>b.onclick=()=>{const f=projectFiles().find(x=>x.id===b.dataset.kd);if(f)dl(f.name,f.content,f.type||'text/plain')});
+      L.querySelectorAll('[data-kv]').forEach(b=>b.onclick=()=>{const f=projectFiles().find(x=>x.id===b.dataset.kv);if(!f)return;
+        const vm=modal({title:f.name,icon:'file',size:'lg',body:`<div class="codeview"><pre>${esc((f.content||'').slice(0,40000))}</pre></div>`,
+          foot:`<span></span><span class="sp"></span><button class="btn" id="kvDl">${I('download')}Download</button>`});
+        vm.el.querySelector('#kvDl').onclick=()=>dl(f.name,f.content,f.type||'text/plain')});
+      L.querySelectorAll('[data-kx]').forEach(b=>b.onclick=async()=>{const f=projectFiles().find(x=>x.id===b.dataset.kx);
+        if(!await confirmModal({title:'Delete file?',body:f.name}))return;S.files=S.files.filter(x=>x.id!==f.id);saveS();paintList();renderConsole();});
+    }else if(tab==='snips'){
+      L.querySelectorAll('[data-kv]').forEach(b=>b.onclick=()=>{const s=S.snippets.find(x=>x.id===b.dataset.kv);if(!s)return;
+        const vm=modal({title:s.name,icon:'code',size:'lg',body:`<div class="codeview"><pre>${esc(s.code||'')}</pre></div>`,
+          foot:`<span class="tag">${esc(s.language||'text')}</span><span class="sp"></span><button class="btn" id="kvCp">${I('copy')}Copy</button>`});
+        vm.el.querySelector('#kvCp').onclick=()=>{navigator.clipboard?.writeText(s.code);toast('Snippet copied.',{type:'ok'})}});
+      L.querySelectorAll('[data-kcp]').forEach(b=>b.onclick=()=>{const s=S.snippets.find(x=>x.id===b.dataset.kcp);if(s){navigator.clipboard?.writeText(s.code);toast('Snippet copied.',{type:'ok'})}});
+      L.querySelectorAll('[data-kx]').forEach(b=>b.onclick=async()=>{const s=S.snippets.find(x=>x.id===b.dataset.kx);
+        if(!await confirmModal({title:'Delete snippet?',body:s.name}))return;S.snippets=S.snippets.filter(x=>x.id!==s.id);saveS();paintList();});
+    }else if(tab==='memory'){
+      L.querySelector('#kAdd').onclick=()=>{const v=(L.querySelector('#kNote')?.value||'').trim();if(!v)return;
+        const p=proj();p.agent.knowledge=(p.agent.knowledge||'')+'\n- '+v;saveS();q='';paintShell();toast('Saved to project memory.',{type:'ok'})};
+      L.querySelectorAll('[data-km]').forEach(b=>b.onclick=async()=>{
+        const p=proj();const notes=(p.agent.knowledge||'').split('\n').map(x=>x.replace(/^-\s*/,'').trim()).filter(Boolean);
+        const i=+b.dataset.km;if(!notes[i])return;
+        if(!await confirmModal({title:'Remove memory note?',body:notes[i]}))return;
+        notes.splice(i,1);p.agent.knowledge=notes.map(n=>'- '+n).join('\n');saveS();paintList();toast('Note removed.',{type:'in'})});
+    }else{
+      L.querySelectorAll('[data-task]').forEach(r=>r.onclick=()=>openTaskDetail(r.dataset.task));
+    }
+  };
+  const paintShell=()=>{
+    const w=m.el.querySelector('#kWrap');if(!w)return;
+    w.innerHTML=`<div class="searchbar">${I('search')}<input type="text" id="kq" placeholder="${esc(ph[tab]||'Search')}" value="${esc(q)}"/></div><div id="kList" class="con-scroll" style="margin-top:10px"></div>`;
+    w.querySelector('#kq').oninput=e=>{q=e.target.value;paintList()};
+    paintList();
+    if(tab==='results')taskList().then(()=>{if(m.el.isConnected&&tab==='results')paintList()}).catch(()=>{});
+  };
+  paintShell();
+  m.onTab=t=>{tab=t;q='';paintShell()};
 }
 taskList();
 
