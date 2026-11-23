@@ -508,7 +508,7 @@ html[data-focus=on] .rail,html[data-focus=on] .sidebar,html[data-focus=on] .pane
 html[data-focus=on] .shell{grid-template-columns:minmax(0,1fr);padding-bottom:0}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
-</head>
+<style>#fxConns{position:fixed;top:0;right:0;width:460px;max-width:94vw;height:100vh;background:var(--bg,#fff);z-index:99;box-shadow:-18px 0 50px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}#fxConns .hd{display:flex;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(127,127,127,.2)}#fxConns .bd{flex:1;overflow:auto;padding:12px 14px}#fxConns .row{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid rgba(127,127,127,.12)}#fxConns .ic{width:28px;height:28px;border-radius:8px;background:rgba(31,94,82,.12);display:grid;place-items:center;font-weight:700;color:#1F5E52}#fxConns .mi{flex:1;min-width:0;display:flex;flex-direction:column}#fxConns .mi span{font-size:11.5px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#fxConns .st{font-size:10.5px;padding:3px 8px;border-radius:99px;background:rgba(127,127,127,.14);white-space:nowrap}#fxConns .st.ok{background:rgba(48,164,108,.18);color:#2c9c68}#fxConns .cg{margin-bottom:8px}#fxConns .cg summary{cursor:pointer;font-weight:600;padding:6px 2px;font-size:13px}#fxConns .cx{margin-bottom:8px}#fxConns input{padding:7px 10px;border:1px solid rgba(127,127,127,.35);border-radius:8px;background:transparent;color:inherit}#fxConns .vx{display:flex;gap:6px;margin-bottom:10px}#fxConns .vx input{flex:1;min-width:0}#fxConns .val{font-size:11px;opacity:.6;letter-spacing:1px}</style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
@@ -1155,6 +1155,7 @@ const liveConnectors=()=>S.connectors.filter(c=>c.status==='online'&&!off().conn
 const BUILTINS=[
  ['http_request','Raw HTTP request (like curl): any method, custom headers, body. Returns status code and response text.','globe',{type:'object',properties:{url:{type:'string'},method:{type:'string'},headers:{type:'object'},body:{type:'string'},max_chars:{type:'number'}},required:['url']}],
  ['download_file','Download a file from any URL into the project workspace so it can be read or searched later.','download',{type:'object',properties:{url:{type:'string'},name:{type:'string'}},required:['url']}],
+ ['connected_api','Call any connected external service (GitHub, Notion, Google, Slack, 110+). Pass provider id, target url on that service, optional method/body. Auth tokens are injected server-side - never ask the user for keys of already-connected services.','link',{type:'object',properties:{provider:{type:'string'},url:{type:'string'},method:{type:'string'},body:{type:'string'}},required:['provider','url']}],
  ['web_fetch','Fetch a URL and return readable text.','globe',{type:'object',properties:{url:{type:'string'},max_chars:{type:'number'}},required:['url']}],
  ['run_js','Execute JavaScript in a sandbox and return output.','code',{type:'object',properties:{code:{type:'string'}},required:['code']}],
  ['list_files','List files stored in this project.','file',{type:'object',properties:{}}],
@@ -1204,6 +1205,14 @@ async function execTool(name,args){
       if(S.files.some(f=>f.projectId===S.activeProject&&f.name===nm))throw new Error('File already exists: '+nm);
       S.files.push({id:uid(),projectId:S.activeProject,name:nm,type:'text',content:txt,size:txt.length,createdAt:Date.now()});saveS();renderConsole();
       out='Downloaded '+nm+' ('+bytes(txt.length)+')'}
+    else if(name==='connected_api'){
+      const tk=F.tok?F.tok():'';if(!tk)throw new Error('Sign-in required');
+      let sb=(args.body==null)?undefined:String(args.body);if(sb){try{sb=JSON.stringify(JSON.parse(sb))}catch{}}
+      const r=await fetch('/api/connections/call',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tk},
+        body:JSON.stringify({provider:args.provider,url:args.url,method:(args.method||'GET').toUpperCase(),body:sb})});
+      const jj=await r.json().catch(()=>({}));
+      out=r.ok?('HTTP '+jj.status+'\n'+(jj.body||'')):('Error: '+(jj.error||r.status));
+      if(String(jj.error||'').includes('Connect '))out+='\nTell the user to connect it in /connect';}
     else if(name==='web_fetch'){const r=await proxyFetch(args.url,{method:'GET'});const txt=await r.text();
       out=txt.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,args.max_chars||6000)}
     else if(name==='run_js')out=await runJS(String(args.code||''));
@@ -2762,7 +2771,7 @@ window.addEventListener('error',e=>{console.error('[forge]',e.error||e.message);
 window.addEventListener('unhandledrejection',e=>{if(e.reason?.name!=='AbortError')console.error('[forge] async',e.reason)});
 
 /* ══ DRIVER · exposed for the cloud + pro add-on modules ══ */
-window.__forge={get S(){return S},get PF(){return PF},gateway,savePF,saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
+window.__forge={get S(){return S},get tok(){return JSON.parse(localStorage.getItem('fs.cloud')||'{}').token||''},get PF(){return PF},gateway,savePF,saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
 
 /* ══ BOOT ══ */
 if(!localStorage.getItem('fs.cloud')){location.replace('/signin');throw new Error('Sign-in required');}
@@ -3338,6 +3347,102 @@ const chip = document.createElement('button');
 chip.className = 'btn q ic'; chip.title = 'Background runs'; chip.setAttribute('aria-label', 'Background runs');
 chip.innerHTML = '<svg class="i"><use href="#i-clock"/></svg>';
 chip.onclick = jobsPane;
+const barR = document.querySelector('.bar-r');
+if (barR) barR.prepend(chip);
+</script>
+<script type="module">
+/* FORGE PRO - connector marketplace + vault (nothing sensitive stays on the device) */
+const F = window.__forge;
+const esc = (v) => String(v ?? '').replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c]));
+const api = async (p, m, b) => {
+  const r = await fetch(p, { method: m || 'GET', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + F.tok }, body: b ? JSON.stringify(b) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+};
+let conns = [];let cat = [];let tab = 'conns';let pane = null;
+function paint() {
+  const bd = pane.querySelector('.bd');
+  if (tab === 'vault') {
+    bd.innerHTML = '<div class=\"vx\"><input id=vKey placeholder=\"key\"><input id=vVal placeholder=\"value\" type=\"password\"><button class=\"b pri\" id=vAdd>Save</button></div><div id=vList><i>Loading\u2026</i></div>';
+    api('/api/vault').then((d) => {
+      const ks = Object.keys(d.values || {});
+      const el = document.getElementById('vList'); if (!el) return;
+      el.innerHTML = ks.length ? ks.map((k) => '<div class=\"row\"><b>' + esc(k) + '</b><span class=\"val\">' + esc(String(d.values[k]).slice(0, 6) + '\u2022\u2022\u2022') + '</span><span class=\"sp\"></span><button class=\"b\" data-k=\"' + esc(k) + '\" data-a=\"del\">\u2715</button></div>').join('') : '<i>Vault empty. Add API keys and secrets here - AES-256-GCM encrypted in the database, never on this device.</i>';
+      el.querySelectorAll('[data-a=del]').forEach((b) => b.onclick = async () => { await api('/api/vault?key=' + encodeURIComponent(b.dataset.k), 'DELETE'); F.toast('Deleted ' + b.dataset.k, { type: 'ok' }); paint(); });
+    }).catch((e) => { const el = document.getElementById('vList'); if (el) el.innerHTML = '<i>' + esc(e.message) + '</i>'; });
+    document.getElementById('vAdd').onclick = async () => { const k = document.getElementById('vKey').value.trim(), v = document.getElementById('vVal').value.trim(); if (!k || !v) return; await api('/api/vault', 'PUT', { key: k, value: v }); F.toast('Saved to encrypted vault', { type: 'ok' }); paint(); };
+    return;
+  }
+  bd.innerHTML = '<div class=\"cx\"><input id=cq placeholder=\"Search connectors\u2026\"></div><div id=cl></div>';
+  const draw = (q) => {
+    const cl = document.getElementById('cl'); if (!cl) return;
+    q = (q || '').toLowerCase();
+    const groups = {};
+    cat.forEach((c) => { (groups[c.cat] = groups[c.cat] || []).push(c); });
+    const CATN = { ai: 'AI models', dev: 'Developer', work: 'Work apps', fin: 'Finance', media: 'Media', com: 'Communication', data: 'Data', other: 'Other' };
+    let out = '';
+    for (const g of Object.keys(groups)) {
+      const items = groups[g].filter((c) => !q || (c.n + ' ' + c.d + ' ' + c.id).toLowerCase().includes(q));
+      if (!items.length) continue;
+      out += '<details open class=\"cg\"><summary>' + esc(CATN[g] || g) + ' \u00b7 ' + items.length + '</summary>';
+      for (const c of items) {
+        const cc = conns.find((x) => x.provider.toLowerCase() === c.id.toLowerCase());
+        out += '<div class=\"row\" data-id=\"' + esc(c.id) + '\"><div class=\"ic\">' + esc((c.n || '?')[0].toUpperCase()) + '</div><div class=\"mi\"><b>' + esc(c.n) + '</b><span>' + esc(c.d || '') + '</span></div>'
+          + (cc ? '<span class=\"st ok\">Connected</span><button class=\"b\" data-a=\"off\">\u2715</button>' : '<span class=\"st\">\u2014</span><button class=\"b pri\" data-a=\"on\">Connect</button>') + '</div>';
+      }
+      out += '</details>';
+    }
+    cl.innerHTML = out || '<i>Nothing matches.</i>';
+    cl.querySelectorAll('[data-a=on]').forEach((b) => b.onclick = (e) => startConn(e.target.closest('.row').dataset.id));
+    cl.querySelectorAll('[data-a=off]').forEach((b) => b.onclick = async (e) => { const id = e.target.closest('.row').dataset.id; await api('/api/connections?provider=' + encodeURIComponent(id), 'DELETE'); F.toast('Disconnected ' + id, { type: 'ok' }); load(); });
+  };
+  document.getElementById('cq').oninput = (e) => draw(e.target.value);
+  draw('');
+}
+function startConn(id) {
+  const c = cat.find((x) => x.id === id); if (!c) return;
+  if (c.a === 'oauth') {
+    api('/api/connections/oauth/' + id + '?action=start').then((d) => {
+      if (d.configured) { window.addEventListener('message', function h(e) { if (e.data && e.data.forgeOauth === 'ok') { window.removeEventListener('message', h); F.toast(c.n + ' connected', { type: 'ok' }); load(); } }); window.open(d.authorizeUrl, 'forge-oauth', 'width=620,height=760'); }
+      else { F.toast(c.n + ' OAuth not registered yet - see setup info in the console. You can connect with a token instead.', { type: 'wa', timeout: 9000 }); console.log('[Forge] Setup for ' + id, d.setup); }
+    }).catch((e) => F.toast('Failed: ' + e.message, { type: 'er' }));
+  } else {
+    const tok = prompt('Paste your ' + c.n + ' API key or token (' + (c.doc || 'see provider docs') + ')');
+    if (!tok) return;
+    api('/api/connections', 'POST', { provider: id, accessToken: tok }).then(() => { F.toast(c.n + ' connected - token encrypted in the vault', { type: 'ok' }); load(); }).catch((e) => F.toast('Failed: ' + e.message, { type: 'er' }));
+  }
+}
+function load() {
+  if (!pane) return;
+  pane.querySelector('.bd').innerHTML = '<i>Loading\u2026</i>';
+  api('/api/connections?catalog=1').then((d) => { conns = d.connections || []; cat = d.catalog || []; paint(); }).catch((e) => { if (pane) pane.querySelector('.bd').innerHTML = '<i>' + esc(e.message) + '</i>'; });
+}
+function panel() {
+  if (pane) { pane.remove(); pane = null; return; }
+  pane = document.createElement('div'); pane.id = 'fxConns';
+  pane.innerHTML = '<div class=\"hd\"><b>Connectors &amp; Vault</b><span class=\"sp\"></span><button class=\"b\" data-a=\"t0\">Connections</button><button class=\"b\" data-a=\"t1\">Vault</button><button class=\"b\" data-a=\"x\">\u2715</button></div><div class=\"bd\"><i>Loading\u2026</i></div>';
+  document.body.appendChild(pane);
+  pane.querySelector('[data-a=x]').onclick = () => { pane.remove(); pane = null; };
+  pane.querySelector('[data-a=t0]').onclick = () => { tab = 'conns'; load(); };
+  pane.querySelector('[data-a=t1]').onclick = () => { tab = 'vault'; paint(); };
+  load();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+  const ta = document.getElementById('input');
+  if (!ta || document.activeElement !== ta) return;
+  const v = ta.value.trim();
+  if (v.startsWith('/connect') || v.startsWith('/vault')) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    tab = v.startsWith('/vault') ? 'vault' : 'conns';
+    ta.value = ''; ta.dispatchEvent(new Event('input'));
+    panel();
+  }
+}, true);
+const chip = document.createElement('button'); chip.className = 'btn q ic'; chip.title = 'Connectors'; chip.setAttribute('aria-label', 'Connectors');
+chip.innerHTML = '<svg class=\"i\"><use href=\"#i-link\"/></svg>';
+chip.onclick = () => { tab = 'conns'; if (pane) { pane.remove(); pane = null; } else panel(); };
 const barR = document.querySelector('.bar-r');
 if (barR) barR.prepend(chip);
 </script>

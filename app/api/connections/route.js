@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { sql, json, bad } from "../../../lib/db.js";
 import { requireUser } from "../../../lib/auth.js";
 import { enc } from "../../../lib/vault.js";
-import { catalogFor } from "../../../lib/connectors-catalog.js";
+import { catalogFor, CATALOG } from "../../../lib/connectors-catalog.js";
 
 async function handler(req) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
@@ -14,6 +14,7 @@ async function handler(req) {
   }
 
   if (req.method === "GET") {
+    const withCatalog = new URL(req.url).searchParams.has("catalog");
     const rows = await sql`
       select provider, status, account_label, scopes, expires_at, updated_at
       from connections where user_id = ${user.id} order by updated_at desc
@@ -27,6 +28,7 @@ async function handler(req) {
         expiresAt: r.expires_at,
         updatedAt: r.updated_at,
       })),
+      ...(withCatalog ? { catalog: CATALOG } : {}),
     });
   }
 
