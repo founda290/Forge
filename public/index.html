@@ -605,6 +605,36 @@ html[data-theme=dark]{
 .sbt-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sbt .ring{width:10px;height:10px;border-width:2px}
 @keyframes pulseDot{50%{opacity:.3}}
+
+/* ==== POLISH PASS: labeled nav, live activity, conversation, composer ==== */
+@media (min-width:761px){
+  :root{--rail:150px}
+  .rail{align-items:stretch;padding:9px 8px}
+  .rail .logo{align-self:flex-start;margin-left:2px}
+  .rbtn{width:auto;height:34px;display:flex;align-items:center;gap:9px;padding:0 10px;justify-content:flex-start}
+  .rbtn[data-l]::after{content:attr(data-l);font-size:.7188rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rbtn .badge{position:static;margin-left:auto}
+}
+.rbtn.mob-only{display:none}
+@media (max-width:760px){
+  .rbtn.mob-only{display:grid;height:39px;width:39px}
+  .rail [data-nav="agents"],.rail [data-nav="skills"],.rail [data-nav="providers"],.rail [data-nav="visuals"],.rail [data-nav="console"],.rail [data-nav="worker"],.rail [data-nav="connectors"],.rail [data-nav="settings"],.rail [data-nav="palette"]{display:none}
+}
+.moregrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
+.mgl{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line2);border-radius:12px;background:var(--surface);cursor:pointer;text-align:left;min-width:0;color:var(--tx)}
+.mgl:hover{border-color:var(--ac-line)}
+.mgl-t{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.mgl-t b{font-size:.8125rem}
+.mgl-t small{font-size:.6875rem;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msg{gap:8px}
+.mmeta{opacity:.72}
+.reason summary small{font-weight:500;color:var(--tx3);font-family:var(--mono)}
+.ab-tx small{display:flex;align-items:center;gap:5px}
+.ab-tx small span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.agentbar.busy .ab-orb{animation:orbPulse 1.6s ease-in-out infinite}
+@keyframes orbPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ac) 40%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
+.composer.drag{position:relative}
+.composer.drag::after{content:'Drop files to attach';position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--ac) 10%,transparent);border-radius:inherit;font-size:.8125rem;font-weight:600;color:var(--ac);pointer-events:none}
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -690,21 +720,22 @@ html[data-theme=dark]{
 <div class="shell">
   <nav class="rail" aria-label="Workspace">
     <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 19V5h9M8 12h6.5"/></svg></span>
-    <button class="rbtn" data-nav="home" title="Home — give Forge a task" aria-label="Home"><svg class="i l"><use href="#i-home"/></svg></button>
-    <button class="rbtn" data-nav="tasks" title="Task history" aria-label="Tasks"><svg class="i l"><use href="#i-activity"/></svg><span class="badge" id="bTasks" hidden>0</span></button>
-    <button class="rbtn on" data-nav="chats" title="Chats" aria-label="Chats"><svg class="i l"><use href="#i-msg"/></svg></button>
-    <button class="rbtn" data-nav="projects" title="Projects" aria-label="Projects"><svg class="i l"><use href="#i-folder"/></svg></button>
-    <button class="rbtn" data-nav="connectors" title="Connectors — paste a URL" aria-label="Connectors"><svg class="i l"><use href="#i-plug"/></svg><span class="badge" id="bCon" hidden>0</span></button>
-    <button class="rbtn" data-nav="agents" title="Agent & subagents" aria-label="Agents"><svg class="i l"><use href="#i-agent"/></svg></button>
-    <button class="rbtn" data-nav="skills" title="Skills" aria-label="Skills"><svg class="i l"><use href="#i-skill"/></svg><span class="badge" id="bSkills" hidden>0</span></button>
-    <button class="rbtn" data-nav="knowledge" title="Knowledge — files, snippets, project memory" aria-label="Knowledge"><svg class="i l"><use href="#i-book"/></svg></button>
-    <button class="rbtn" data-nav="providers" title="Gateways & keys" aria-label="Providers"><svg class="i l"><use href="#i-key"/></svg></button>
-    <button class="rbtn" data-nav="visuals" title="Visual studio" aria-label="Visuals"><svg class="i l"><use href="#i-palette"/></svg></button>
-    <button class="rbtn" data-nav="console" title="Agent console" aria-label="Console"><svg class="i l"><use href="#i-term"/></svg></button>
-    <button class="rbtn" data-nav="worker" title="Cloudflare Worker" aria-label="Worker"><svg class="i l"><use href="#i-worker"/></svg></button>
+    <button class="rbtn" data-nav="home" data-l="Home" title="Home — give Forge a task" aria-label="Home"><svg class="i l"><use href="#i-home"/></svg></button>
+    <button class="rbtn" data-nav="tasks" data-l="Tasks" title="Task history" aria-label="Tasks"><svg class="i l"><use href="#i-activity"/></svg><span class="badge" id="bTasks" hidden>0</span></button>
+    <button class="rbtn on" data-nav="chats" data-l="Chats" title="Chats" aria-label="Chats"><svg class="i l"><use href="#i-msg"/></svg></button>
+    <button class="rbtn" data-nav="projects" data-l="Projects" title="Projects" aria-label="Projects"><svg class="i l"><use href="#i-folder"/></svg></button>
+    <button class="rbtn" data-nav="connectors" data-l="Connect" title="Connectors — paste a URL" aria-label="Connectors"><svg class="i l"><use href="#i-plug"/></svg><span class="badge" id="bCon" hidden>0</span></button>
+    <button class="rbtn" data-nav="agents" data-l="Agents" title="Agent & subagents" aria-label="Agents"><svg class="i l"><use href="#i-agent"/></svg></button>
+    <button class="rbtn" data-nav="skills" data-l="Skills" title="Skills" aria-label="Skills"><svg class="i l"><use href="#i-skill"/></svg><span class="badge" id="bSkills" hidden>0</span></button>
+    <button class="rbtn" data-nav="knowledge" data-l="Knowledge" title="Knowledge — files, snippets, project memory" aria-label="Knowledge"><svg class="i l"><use href="#i-book"/></svg></button>
+    <button class="rbtn" data-nav="providers" data-l="Models" title="Gateways & keys" aria-label="Providers"><svg class="i l"><use href="#i-key"/></svg></button>
+    <button class="rbtn" data-nav="visuals" data-l="Visuals" title="Visual studio" aria-label="Visuals"><svg class="i l"><use href="#i-palette"/></svg></button>
+    <button class="rbtn" data-nav="console" data-l="Console" title="Agent console" aria-label="Console"><svg class="i l"><use href="#i-term"/></svg></button>
+    <button class="rbtn" data-nav="worker" data-l="Worker" title="Cloudflare Worker" aria-label="Worker"><svg class="i l"><use href="#i-worker"/></svg></button>
     <span class="sp"></span>
-    <button class="rbtn" data-nav="palette" title="Commands (Ctrl+K)" aria-label="Commands"><svg class="i l"><use href="#i-cmd"/></svg></button>
-    <button class="rbtn" data-nav="settings" title="Settings" aria-label="Settings"><svg class="i l"><use href="#i-gear"/></svg></button>
+    <button class="rbtn mob-only" data-nav="more" data-l="More" title="All destinations" aria-label="More"><svg class="i l"><use href="#i-layers"/></svg></button>
+    <button class="rbtn" data-nav="palette" data-l="Commands" title="Commands (Ctrl+K)" aria-label="Commands"><svg class="i l"><use href="#i-cmd"/></svg></button>
+    <button class="rbtn" data-nav="settings" data-l="Settings" title="Settings" aria-label="Settings"><svg class="i l"><use href="#i-gear"/></svg></button>
   </nav>
 
   <aside class="sidebar" id="sidebar" aria-label="Conversations">
@@ -1446,7 +1477,7 @@ $('#jump').onclick=()=>stage.scrollTo({top:stage.scrollHeight,behavior:'smooth'}
 const nodeOf=id=>thread.querySelector(`[data-id="${id}"]`);
 function segHTML(sg){
   if(sg.type==='text')return `<div class="md">${md(sg.text)}</div>`;
-  if(sg.type==='reason')return `<details class="reason"><summary>${I('brain')}Reasoning · ${sg.text.length} chars</summary><div class="rb">${esc(sg.text)}</div></details>`;
+  if(sg.type==='reason')return `<details class="reason"><summary>${I('brain')}Thought process<span style="flex:1"></span><small>${sg.text.length.toLocaleString()} chars</small></summary><div class="rb">${esc(sg.text)}</div></details>`;
   if(sg.type==='tool'){
     const st=sg.done?(sg.ok?'ok':'er'):'live';
     return `<div class="toolcard"><div class="tc-head" data-tc>${I(sg.done?(sg.ok?'check':'alert'):'refresh')}<b>${esc(sg.name)}</b>
@@ -1708,13 +1739,31 @@ function speak(text){
 let termLines=[{t:'dim',v:'Forge terminal — type help for commands.'}],termHist=[],termHi=0;
 function tput(v,t=''){termLines.push({t,v:String(v)});if(termLines.length>500)termLines.splice(0,termLines.length-500);
   if(PF.consoleOpen&&PF.consoleTab==='term')renderConsole()}
+function phaseOf(s){
+  const t=(s||'').toLowerCase();
+  if(t.startsWith('reasoning'))return['brain','Reasoning'];
+  if(t.startsWith('thinking'))return['brain','Thinking'];
+  if(t.includes('subagent'))return['layers','Delegating'];
+  if(t.startsWith('running'))return['zap',s];
+  if(t.startsWith('writing'))return['pen','Writing response'];
+  if(t.startsWith('read'))return['eye','Reading context'];
+  if(t.startsWith('search'))return['search','Searching'];
+  return['zap',s];
+}
+function openMoreSheet(){
+  const items=[['home','Home','Give Forge a task','home'],['tasks','Tasks','Live & past runs','activity'],['chats','Chats','Conversations','msg'],['projects','Projects','Persistent workspaces','folder'],['knowledge','Knowledge','Files, snippets, memory','book'],['connectors','Connectors','MCP & endpoints','plug'],['agents','Agents','Persona & subagents','agent'],['skills','Skills','Reusable abilities','skill'],['providers','Models','Gateways & keys','key'],['visuals','Visual studio','Moodboard & sketchpad','palette'],['console','Console','Steps, files, terminal','term'],['worker','Gateway','Worker, jobs, automations','worker'],['settings','Settings','Theme, permissions, sync','gear']];
+  const m=modal({title:'Workspace',icon:'layers',size:'md',body:`<div class="moregrid">${items.map(([v,n,d,ic])=>`<button class="mgl" data-go="${v}">${I(ic,'i l')}<span class="mgl-t"><b>${esc(n)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`,foot:`<span></span><span class="sp"></span><button class="btn" data-cl>Close</button>`});
+  m.el.querySelector('[data-cl]').onclick=()=>m.close();
+  m.body.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{m.close();navTo(b.dataset.go)});
+}
 function setStep(s){curStep=s;paintAgentbar();pubTaskStatus(s)}
 function paintAgentbar(){
   const bar=$('#agentbar');
   bar.classList.toggle('busy',!!live);
   $('#abOrb').innerHTML=live?'<span class="ring"></span>':I('spark');
   $('#abTitle').textContent=live?'Forge is working':'Forge';
-  $('#abStep').textContent=curStep;
+  const ph=live?phaseOf(curStep):null;
+  $('#abStep').innerHTML=live?`${I(ph[0],'i s')}<span>${esc(ph[1])}</span>`:esc(curStep);
   $('#abCount').textContent=(turnSteps.length||S.runs.length)+' steps';
   const fw=turnSteps.filter(x=>x.name==='write_file'||x.name==='download_file').length,fr=turnSteps.filter(x=>x.name==='read_file'||x.name==='list_files'||x.name==='search_workspace').length;
   const fa=$('#abFiles');fa.hidden=!(fw||fr);fa.textContent=[fw?'Edited '+fw:'',fr?'Read '+fr:''].filter(Boolean).join(' · ');
@@ -2900,6 +2949,7 @@ function navTo(v){
   if(v==='tasks'){openTasks();return}
   if(v==='chats'){openSidebar();return}
   if(v==='console'){toggleConsole();return}
+  if(v==='more'){openMoreSheet();return}
   ({projects:openProjects,agents:openAgents,skills:openSkills,knowledge:openKnowledge,connectors:()=>openConnectors('all'),
     providers:openProviders,visuals:openVisuals,worker:openWorker,settings:openSettings,palette:openPalette})[v]?.();
 }

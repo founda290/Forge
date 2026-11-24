@@ -104,7 +104,7 @@ export default{async scheduled(ctrl,env,ctx){ctx.waitUntil(runJobs(env));ctx.wai
         return json({jobs:l.map(pub).reverse()})}
       if(req.method==='DELETE'){const id=url.searchParams.get('id');const l=await load();const n=l.filter(x=>x.id!==id);await env.FORGE_KV.put('jobs',JSON.stringify(n));return json({ok:true,removed:l.length-n.length})}
       return json({error:'method not allowed'},405)}
-    if(url.pathname==='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync','/jobs']});
+    if(url.pathname==='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync','/jobs','/automations']});
     if(url.pathname==='/automations'){if(!env.FORGE_KV)return json({error:'bind FORGE_KV'},400);
       const loadA=async()=>JSON.parse((await env.FORGE_KV.get('automations'))||'[]');
       const mask=a=>({...a,key:a.key?'***':''});
@@ -123,6 +123,5 @@ export default{async scheduled(ctrl,env,ctx){ctx.waitUntil(runJobs(env));ctx.wai
       if(req.method==='DELETE'){const id=url.searchParams.get('id');const l=await loadA();const n=l.filter(x=>x.id!==id);
         await env.FORGE_KV.put('automations',JSON.stringify(n));return json({ok:true,removed:l.length-n.length})}
       return json({error:'method not allowed'},405)}
-    if(url.pathname=='/')return json({ok:true,service:'forge-gateway',routes:['/v1/chat/completions','/models','/mcp','/fetch','/exec','/sync','/jobs','/automations']});
     return json({error:'not found'},404);
   }catch(e){return json({error:String(e&&e.message||e)},500)}}};
