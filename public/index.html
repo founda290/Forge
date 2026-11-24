@@ -1672,7 +1672,7 @@ $('#jump').onclick=()=>stage.scrollTo({top:stage.scrollHeight,behavior:'smooth'}
 const nodeOf=id=>thread.querySelector(`[data-id="${id}"]`);
 function segHTML(sg){
   if(sg.type==='text')return `<div class="md">${md(sg.text)}</div>`;
-  if(sg.type==='reason')return `<details class="reason"><summary>${I('brain')}Thought process<span style="flex:1"></span><small>${sg.text.length.toLocaleString()} chars</small></summary><div class="rb">${esc(sg.text)}</div></details>`;
+  if(sg.type==='reason')return `<details class="reason"><summary>${I('brain')}Thought process<span style="flex:1"></span>${I('chev')}</summary><div class="rb">${esc(sg.text)}</div></details>`;
   if(sg.type==='tool'){
     const st=sg.done?(sg.ok?'ok':'er'):'live';
     return `<div class="toolcard"><div class="tc-head" data-tc>${I(sg.done?(sg.ok?'check':'alert'):'refresh')}<b>${esc(sg.name)}</b>
@@ -1703,12 +1703,13 @@ function msgNode(m,c){
     else acts.push(`<button data-a="retry">${I('refresh')}Regenerate</button>`);
     acts.push(`<button data-a="more" aria-label="More actions"><b style="letter-spacing:2px;line-height:1">⋯</b></button>`)}
   const meta=[];
-  if(!u&&!m.pending){if(m.model)meta.push(`<span class="tag ac">${esc(m.model)}</span>`);
+  if(!u&&!m.pending&&PF.showMeta){if(m.model)meta.push(`<span class="tag ac">${esc(m.model)}</span>`);
     if(m.tokens)meta.push(`<span class="tag">${m.tokens.toLocaleString()} tok</span>`);
     if(m.ms)meta.push(`<span class="tag">${(m.ms/1000).toFixed(1)}s</span>`);
     if(m.toolCount)meta.push(`<span class="tag ok">${m.toolCount} tool call${m.toolCount>1?'s':''}</span>`)}
+    if(!u&&!m.pending&&m.deliv)meta.push(`<button class="tag ac" data-a="openfiles" style="cursor:pointer">${I('file')} ${m.deliv} file${m.deliv>1?'s':''} · open</button>`)
   el.innerHTML=u?`<div class="mhead">You · ${hhmm(m.ts)}</div><div class="ubody">${body}</div><div class="macts"${m.pending?' hidden':''}>${acts.join('')}</div>`
-    :`<div class="mhead">${I('spark')}Forge${m.sub?' · '+esc(m.sub):''}${m.ts?`<span style="color:var(--tx3);font-weight:400"> · ${hhmm(m.ts)}</span>`:''}</div><div class="abody">${body}</div>${meta.length?`<div class="mmeta">${meta.join('')}</div>`:''}<div class="macts"${m.pending?' hidden':''}>${acts.join('')}</div>`;
+    :`<div class="mhead" data-mh="1" title="Message details">${I('spark')}Forge${m.sub?' · '+esc(m.sub):''}${m.ts?`<span style="color:var(--tx3);font-weight:400"> · ${hhmm(m.ts)}</span>`:''}</div><div class="abody">${body}</div>${meta.length?`<div class="mmeta">${meta.join('')}</div>`:''}<div class="macts"${m.pending?' hidden':''}>${acts.join('')}</div>`;
   requestAnimationFrame(()=>{const ab=el.querySelector('.abody');if(ab&&ab.scrollHeight>1500){ab.style.maxHeight='1500px';ab.style.overflow='hidden';
     const b=document.createElement('button');b.className='btn sm';b.style.margin='8px auto 0';b.textContent='Read more';
     b.onclick=()=>{ab.style.maxHeight='';ab.style.overflow='';b.remove()};ab.after(b)}});
@@ -1748,7 +1749,7 @@ async function agentLoop(c,m,{depth=0,extraSys=''}={}){
     for(let loop=0;loop<maxLoops;loop++){
       if(st.stopped)break;
       textSeg=null;reasonSeg=null;
-      setStep(depth?'Subagent thinking':'Thinking · '+m.mode);
+      setStep(depth?'Analysing sub-task':'Analysing request');
       const res=await streamChat({messages:msgs,tools,mode:m.mode,signal:st.ac.signal,
         onText:d=>{if(!textSeg){textSeg={type:'text',text:''};m.segments.push(textSeg)}textSeg.text+=d;setStep('Writing response');sched()},
         onReason:d=>{if(!reasonSeg){reasonSeg={type:'reason',text:''};m.segments.unshift(reasonSeg)}reasonSeg.text+=d;setStep('Reasoning');sched()}});
@@ -1779,6 +1780,7 @@ async function agentLoop(c,m,{depth=0,extraSys=''}={}){
         msgs.push({role:'tool',tool_call_id:seg.id,content:r.out});
         repaint(m,c);paintAgentbar();renderConsole();renderPanel();
       }
+      if(pending.length&&!st.stopped)setStep('Reviewing results');
       textSeg=null;
     }
   }catch(e){
@@ -1792,7 +1794,12 @@ async function agentLoop(c,m,{depth=0,extraSys=''}={}){
   if(problem==='stopped'){m.stopped=true;if(!allText)m.segments.push({type:'text',text:'_Stopped before output._'})}
   else if(problem)m.error=problem instanceof TypeError?'Network error — check the gateway URL, CORS, or enable the Worker proxy.':String(problem.message||problem).slice(0,400);
   c.updatedAt=Date.now();repaint(m,c);saveS();renderChats();
-  if(depth===0){live=null;if(TASK.id)pubTaskEnd(m);setStep('Idle · '+(m.toolCount?m.toolCount+' tool calls done':'tools armed'));paintSend();paintState();paintFoot()}
+  if(depth===0){live=null;if(TASK.id)pubTaskEnd(m);
+    m.deliv=(m.segments||[]).filter(s=>s.type==='tool'&&s.ok&&(s.name==='write_file'||s.name==='download_file')).length;
+    if(m.deliv)repaint(m,c);
+    setStep('Completed · '+(m.toolCount?m.toolCount+' tool call'+(m.toolCount>1?'s':''):'answer')+' · '+(m.ms/1000).toFixed(1)+'s');
+    setTimeout(()=>{if(!live)setStep('Ready · '+toolSpecs().length+' tools armed')},6500);
+    paintSend();paintState();paintFoot()}
   renderConsole();renderPanel();if(near())toEnd();
   if(PF.autoSpeak&&allText&&depth===0)speak(allText.slice(0,1200));
   return allText;
@@ -1828,7 +1835,7 @@ function paintSend(){
   const b=$('#btnSend');
   if(live){b.disabled=false;b.classList.add('stop');$('#sendIc').setAttribute('href','#i-stop');b.setAttribute('aria-label','Stop')}
   else{b.classList.remove('stop');$('#sendIc').setAttribute('href','#i-send');b.disabled=!input.value.trim()&&!attachments.length;b.setAttribute('aria-label','Send')}
-  const n=input.value.length;$('#tokTag').hidden=!n;$('#tokTag').textContent='~'+est(input.value)+' tok · '+(input.value.trim().split(/\s+/).filter(Boolean).length)+' words';
+  const n=input.value.length;$('#tokTag').hidden=!n||!PF.showMeta;$('#tokTag').textContent='~'+est(input.value)+' tok · '+(input.value.trim().split(/\s+/).filter(Boolean).length)+' words';
 }
 $('#btnSend').onclick=send;
 function grow(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,Math.round(innerHeight*.32))+'px'}
@@ -1858,6 +1865,7 @@ input.addEventListener('input',mentionCheck);
 thread.addEventListener('click',async e=>{
   const zoom=e.target.closest('[data-zoom]');if(zoom){lightbox(zoom.src);return}
   const tc=e.target.closest('[data-tc]');if(tc){tc.nextElementSibling.hidden=!tc.nextElementSibling.hidden;return}
+  const mh=e.target.closest('[data-mh]');if(mh){PF.showMeta=PF.showMeta!==true;savePF();renderThread();paintSend();toast(PF.showMeta?'Message details shown — off in Settings.':'Message details hidden.',{type:'in',timeout:2600});return}
   const cc=e.target.closest('[data-cc]');
   if(cc){if(await clip(cc.closest('.code').querySelector('code').textContent)){cc.classList.add('ok');cc.innerHTML=I('check')+'Copied';
     setTimeout(()=>{cc.classList.remove('ok');cc.innerHTML=I('copy')+'Copy'},1400)}return}
@@ -1865,6 +1873,7 @@ thread.addEventListener('click',async e=>{
   if(rn){const out=await runJS(rn.closest('.code').querySelector('code').textContent);
     modal({title:'Run result',icon:'play',size:'md',body:`<div class="codeview"><pre>${esc(out)}</pre></div>`});return}
   const b=e.target.closest('[data-a]');if(!b)return;const c=chat();if(!c)return;
+  if(b.dataset.a==='openfiles'){openPanel('files');return}
   if(b.dataset.a==='fix'){openProviders();return}
   const art=b.closest('.msg'),id=art?.dataset.id,i=c.messages.findIndex(m=>m.id===id),m=c.messages[i];if(!m)return;
   const a=b.dataset.a;
@@ -1977,8 +1986,12 @@ function tput(v,t=''){termLines.push({t,v:String(v)});if(termLines.length>500)te
   if(PF.consoleOpen&&PF.consoleTab==='term')renderConsole()}
 function phaseOf(s){
   const t=(s||'').toLowerCase();
+  if(t.startsWith('analysing'))return['eye','Analysing request'];
+  if(t.startsWith('reviewing'))return['eye','Reviewing results'];
+  if(t.startsWith('completed'))return['check','Completed'];
+  if(t.startsWith('ready'))return['spark','Ready'];
   if(t.startsWith('reasoning'))return['brain','Reasoning'];
-  if(t.startsWith('thinking'))return['brain','Thinking'];
+  if(t.startsWith('thinking'))return['brain','Thinking & planning'];
   if(t.includes('subagent'))return['layers','Delegating'];
   if(t.startsWith('running'))return['zap',s];
   if(t.startsWith('writing'))return['pen','Writing response'];
@@ -3175,12 +3188,14 @@ function openSettings(){
         <div class="swrow"><span>Reduce motion</span><div class="sw" role="switch" aria-checked="${PF.motion===false}" id="stMotion" tabindex="0"></div></div>
         <div class="line"><button class="btn sm" id="stResetUI">${I('undo')}Reset interface</button></div>
         <div class="field"><label class="lbl">Density</label><div class="seg"><button data-dn="cozy" aria-pressed="${PF.density==='cozy'}">Cozy</button><button data-dn="compact" aria-pressed="${PF.density==='compact'}">Compact</button></div></div>
-        <div class="swrow"><span>Focus mode</span><div class="sw" role="switch" aria-checked="${PF.focus}" id="stFocus" tabindex="0"></div></div>`;
+        <div class="swrow"><span>Focus mode</span><div class="sw" role="switch" aria-checked="${PF.focus}" id="stFocus" tabindex="0"></div></div>
+        <div class="swrow"><span>Message details (model, tokens, timing)</span><div class="sw" role="switch" aria-checked="${PF.showMeta===true}" id="stMeta" tabindex="0"></div></div>`;
       box.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{PF.theme=b.dataset.th;savePF();paintTheme();paint()});
       box.querySelectorAll('[data-ac]').forEach(b=>b.onclick=()=>{PF.accent=b.dataset.ac;savePF();paintTheme();paint()});
       box.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{PF.density=b.dataset.dn;savePF();paintTheme();paint()});
       box.querySelector('#stFocus').onclick=()=>{PF.focus=!PF.focus;root.dataset.focus=PF.focus?'on':'off';savePF();paint();syncScrim()};
       box.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{PF.fontSize=b.dataset.fs;savePF();paintTheme();paint()});
+      box.querySelector('#stMeta').onclick=()=>{PF.showMeta=PF.showMeta===true;savePF();renderThread();paintSend();paint()};
       box.querySelector('#stMotion').onclick=()=>{PF.motion=PF.motion===false;savePF();paintTheme();paint()};
       box.querySelector('#stResetUI').onclick=async()=>{if(!await confirmModal({title:'Reset interface?',body:'Theme, accent, density, text size, motion and focus return to defaults.'}))return;
         PF.theme='dark';PF.accent='pine';PF.density='cozy';PF.focus=false;PF.fontSize='m';PF.motion=true;savePF();paintTheme();root.dataset.focus='off';syncScrim();paint();toast('Interface reset.',{type:'ok'})};
