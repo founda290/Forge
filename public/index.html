@@ -36,6 +36,17 @@ html[data-theme=light][data-accent=clay]{--ac:#8A5A3B;--ac-ink:#FFF;--ac-bg:#F3E
 html[data-theme=dark][data-accent=pine]{--ac:#79B8A9;--ac-ink:#0B1614;--ac-bg:#182523;--ac-line:#2E4441;--ac-hi:#8FCBBC;}
 html[data-theme=dark][data-accent=slate]{--ac:#93A9C9;--ac-ink:#0C121C;--ac-bg:#1A2130;--ac-line:#313D52;--ac-hi:#A6BBD8;}
 html[data-theme=dark][data-accent=clay]{--ac:#C79A76;--ac-ink:#1A1209;--ac-bg:#271E16;--ac-line:#463628;--ac-hi:#D6AC8A;}
+html[data-theme=light][data-accent=mint]{--ac:#2E7D5B;--ac-ink:#FFF;--ac-bg:#E7F2EC;--ac-line:#BFDACC;--ac-hi:#256B4D;}
+html[data-theme=dark][data-accent=mint]{--ac:#8FCBAF;--ac-ink:#0B1614;--ac-bg:#16231D;--ac-line:#2C4237;--ac-hi:#A9DCBE;}
+html[data-theme=light][data-accent=amber]{--ac:#A8762E;--ac-ink:#FFF;--ac-bg:#F4ECDD;--ac-line:#DCC9A6;--ac-hi:#8C5F22;}
+html[data-theme=dark][data-accent=amber]{--ac:#D6B27A;--ac-ink:#1A1209;--ac-bg:#261F14;--ac-line:#443722;--ac-hi:#E2C493;}
+html[data-theme=light][data-accent=violet]{--ac:#5B4A8A;--ac-ink:#FFF;--ac-bg:#EEEAF6;--ac-line:#CBC2DC;--ac-hi:#493A6F;}
+html[data-theme=dark][data-accent=violet]{--ac:#B0A2D8;--ac-ink:#12101C;--ac-bg:#1E1A2C;--ac-line:#383148;--ac-hi:#C4B8E4;}
+html[data-theme=light][data-accent=rose]{--ac:#A34D5F;--ac-ink:#FFF;--ac-bg:#F5E9EB;--ac-line:#DBC0C6;--ac-hi:#863D4C;}
+html[data-theme=dark][data-accent=rose]{--ac:#D695A2;--ac-ink:#1A0F12;--ac-bg:#281A1E;--ac-line:#463137;--ac-hi:#E2AEBA;}
+html[data-font=s]{font-size:14px}
+html[data-font=l]{font-size:16.5px}
+html[data-motion=reduced] *,html[data-motion=reduced] *::before,html[data-motion=reduced] *::after{animation:none!important;transition:none!important}
 html[data-density=compact]{--bar:46px;--col:860px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-text-size-adjust:100%}
@@ -1056,6 +1067,7 @@ function toast(msg,{type='in',timeout=4600,action=null}={}){
   el.querySelector('b').textContent=msg;
   const kill=()=>{el.classList.add('out');setTimeout(()=>el.remove(),200)};
   const t=setTimeout(kill,timeout);
+  el.onclick=e=>{if(e.target.closest('.a')||e.target.closest('.x'))return;clearTimeout(t);kill()};
   el.querySelector('.x').onclick=()=>{clearTimeout(t);kill()};
   if(action){const b=el.querySelector('.a');b.textContent=action.label;b.onclick=()=>{clearTimeout(t);kill();action.fn()}}
   toasts.appendChild(el);while(toasts.children.length>4)toasts.firstChild.remove();
@@ -1465,6 +1477,11 @@ async function streamChat({messages,tools,mode,signal,onText,onReason}){
 function sysPrompt(extra){
   const a=proj().agent;let s=(a.persona||SYS_DEFAULT).trim();
   const mp=modeParams(a.mode||PF.mode);if(mp.sys)s+='\n\n'+mp.sys;
+  const st=a.style;
+  if(st==='concise')s+='\n\nREPLY STYLE: be concise — lead with the answer, no preamble, lists over paragraphs.';
+  else if(st==='detailed')s+='\n\nREPLY STYLE: be thorough — explain trade-offs, assumptions and code examples.';
+  else if(st==='steps')s+='\n\nREPLY STYLE: answer as a numbered plan with explicit next actions.';
+  else if(st==='friendly')s+='\n\nREPLY STYLE: be warm and encouraging, still precise.';
   const sk=activeSkills();
   if(sk.length)s+='\n\nACTIVE SKILLS:\n'+sk.map(x=>`• ${x.name}: ${x.description}\n${x.instructions}`).join('\n\n').slice(0,6000);
   if(a.knowledge)s+='\n\nPROJECT KNOWLEDGE:\n'+a.knowledge.slice(0,4000);
@@ -1531,7 +1548,7 @@ function msgNode(m,c){
   const acts=[];
   if(!m.pending){acts.push(`<button data-a="copy">${I('copy')}Copy</button>`);
     if(u)acts.push(`<button data-a="edit">${I('edit')}Edit</button>`);
-    else{acts.push(`<button data-a="retry">${I('refresh')}Regenerate</button>`);acts.push(`<button data-a="speak">${I('vol')}Speak</button>`)}
+    else{acts.push(`<button data-a="retry">${I('refresh')}Regenerate</button>`);acts.push(`<button data-a="speak">${I('vol')}Speak</button>`);acts.push(`<button data-a="snip">${I('book')}Save</button>`)}
     acts.push(`<button data-a="fork">${I('branch')}Fork</button>`);acts.push(`<button data-a="delmsg">${I('trash')}Delete</button>`)}
   const meta=[];
   if(!u&&!m.pending){if(m.model)meta.push(`<span class="tag ac">${esc(m.model)}</span>`);
@@ -1539,7 +1556,10 @@ function msgNode(m,c){
     if(m.ms)meta.push(`<span class="tag">${(m.ms/1000).toFixed(1)}s</span>`);
     if(m.toolCount)meta.push(`<span class="tag ok">${m.toolCount} tool call${m.toolCount>1?'s':''}</span>`)}
   el.innerHTML=u?`<div class="mhead">You · ${hhmm(m.ts)}</div><div class="ubody">${body}</div><div class="macts"${m.pending?' hidden':''}>${acts.join('')}</div>`
-    :`<div class="mhead">${I('spark')}Forge${m.sub?' · '+esc(m.sub):''}</div><div class="abody">${body}</div>${meta.length?`<div class="mmeta">${meta.join('')}</div>`:''}<div class="macts"${m.pending?' hidden':''}>${acts.join('')}</div>`;
+    :`<div class="mhead">${I('spark')}Forge${m.sub?' · '+esc(m.sub):''}${m.ts?`<span style="color:var(--tx3);font-weight:400"> · ${hhmm(m.ts)}</span>`:''}</div><div class="abody">${body}</div>${meta.length?`<div class="mmeta">${meta.join('')}</div>`:''}<div class="macts"${m.pending?' hidden':''}>${acts.join('')}</div>`;
+  requestAnimationFrame(()=>{const ab=el.querySelector('.abody');if(ab&&ab.scrollHeight>1500){ab.style.maxHeight='1500px';ab.style.overflow='hidden';
+    const b=document.createElement('button');b.className='btn sm';b.style.margin='8px auto 0';b.textContent='Read more';
+    b.onclick=()=>{ab.style.maxHeight='';ab.style.overflow='';b.remove()};ab.after(b)}});
   return el;
 }
 function renderThread(){const c=chat();thread.innerHTML='';if(!c)return;
@@ -1653,14 +1673,14 @@ function paintSend(){
   const b=$('#btnSend');
   if(live){b.disabled=false;b.classList.add('stop');$('#sendIc').setAttribute('href','#i-stop');b.setAttribute('aria-label','Stop')}
   else{b.classList.remove('stop');$('#sendIc').setAttribute('href','#i-send');b.disabled=!input.value.trim()&&!attachments.length;b.setAttribute('aria-label','Send')}
-  const n=input.value.length;$('#tokTag').hidden=!n;$('#tokTag').textContent='~'+est(input.value)+' tok';
+  const n=input.value.length;$('#tokTag').hidden=!n;$('#tokTag').textContent='~'+est(input.value)+' tok · '+(input.value.trim().split(/\s+/).filter(Boolean).length)+' words';
 }
 $('#btnSend').onclick=send;
 function grow(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,Math.round(innerHeight*.32))+'px'}
 input.addEventListener('input',()=>{grow();paintSend();const c=chat();if(c){c.draft=input.value;saveS()}});
 input.addEventListener('focus',()=>composer.classList.add('focus'));
 input.addEventListener('blur',()=>composer.classList.remove('focus'));
-input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&(PF.enterSend!==false||e.ctrlKey||e.metaKey)){e.preventDefault();send()}});
 thread.addEventListener('click',async e=>{
   const zoom=e.target.closest('[data-zoom]');if(zoom){lightbox(zoom.src);return}
   const tc=e.target.closest('[data-tc]');if(tc){tc.nextElementSibling.hidden=!tc.nextElementSibling.hidden;return}
@@ -1677,6 +1697,10 @@ thread.addEventListener('click',async e=>{
   if(a==='copy'){const t=m.role==='user'?m.content:(m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n');
     if(await clip(t))toast('Copied.',{type:'ok',timeout:1600});return}
   if(a==='speak'){speak((m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n'));return}
+  if(a==='snip'){const t=(m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n');
+    if(!t){toast('Nothing to save yet.',{type:'wa'});return}
+    const nm=await promptModal({title:'Save to Knowledge',label:'Snippet name',value:(c.title+' — reply').slice(0,46)});
+    if(nm){S.snippets.push({id:uid(),projectId:S.activeProject,name:nm,language:'markdown',code:t,createdAt:Date.now()});saveS();toast('Saved to Knowledge → Snippets.',{type:'ok'})}return}
   if(a==='fork'){const nc={id:uid(),projectId:c.projectId,title:c.title+' (fork)',messages:JSON.parse(JSON.stringify(c.messages.slice(0,i+1))),createdAt:Date.now(),updatedAt:Date.now()};
     S.chats.unshift(nc);S.activeChat=nc.id;saveS();layout();renderChats();renderThread();toast('Forked.',{type:'ok'});return}
   if(a==='retry'&&!live){c.messages.splice(i,1);saveS();renderThread();generate(c);return}
@@ -1832,7 +1856,9 @@ async function termExec(cmd,silent=false){
         '  con call <name> <tool> {json}','  con on|off <name>       enable / disable connector',
         '  skill / skill run <name> <input>','  agent / agent run <name> <task>',
         '  provider / models / project','  approve on|off          auto-approve tool calls',
-        '  task <title> / tasks','  export                  download log','  clear'].join('\n');break;
+        '  task <title> / tasks','  export                  download log','  bundle                  all project files → one .md',
+        '  history                 recent commands','  stats                   project snapshot','  env                     runtime environment',
+        '  date / whoami           clock · signed-in account','  clear'].join('\n');break;
       case 'clear':termLines=[];renderConsole();return '';
       case 'ls':out=projectFiles().map(f=>`${f.name.padEnd(26)} ${bytes(f.size)}`).join('\n')||'(no files)';break;
       case 'cat':{const f=projectFiles().find(x=>x.name===arg);out=f?f.content:'Not found: '+arg;if(!f)cls='err';break}
@@ -1890,6 +1916,14 @@ async function termExec(cmd,silent=false){
       case 'task':S.tasks.push({id:uid(),projectId:S.activeProject,title:arg,due:'',done:false,createdAt:Date.now()});saveS();out='task added';cls='ok';break;
       case 'tasks':out=S.tasks.filter(t=>t.projectId===S.activeProject).map(t=>`${t.done?'✔':'○'} ${t.title}`).join('\n')||'No tasks.';break;
       case 'export':dl('forge-terminal.log',termLines.map(l=>l.v).join('\n'));out='log downloaded';cls='ok';break;
+      case 'history':out=termHist.slice(-30).map((h,i)=>(termHist.length-Math.min(30,termHist.length)+i+1)+'.  '+h).join('\n')||'(empty)';break;
+      case 'date':out=new Date().toString();break;
+      case 'whoami':out=(function(){try{return JSON.parse(localStorage.getItem('fs.cloud')||'null')?.email||'local user'}catch{return 'local user'}})();break;
+      case 'env':{const g=gateway();out='state: '+JSON.stringify({theme:PF.theme,accent:PF.accent,density:PF.density,mode:PF.mode,autoApprove:PF.autoApprove,workerOn:workerOn(),workerURL:workerOn()?PF.workerUrl:'—',gateway:g.p.n,model:S.activeModel||'—'})
+      + '\nagents: '+S.subagents.length+' · skills: '+activeSkills().length+' · snippets: '+S.snippets.length + '\nenv connected: '+(liveConnectors().map(c=>c.name).join('; ')||'none');break}
+      case 'stats':{const p2=proj();out=`project: ${p2.name}\nchats: ${S.chats.filter(c=>c.projectId===p2.id).length}\nfiles: ${projectFiles().length} (${bytes(projectFiles().reduce((a,f)=>a+(f.size||0),0))})\nsnippets: ${S.snippets.filter(s=>!s.projectId||s.projectId===p2.id).length}\nconnectors online: ${liveConnectors().length}/${S.connectors.length}\nskills: ${activeSkills().length}/${S.skills.length}\nsubagents: ${S.subagents.length}\nmodel: ${S.activeModel||'—'}\nworker: ${workerOn()?PF.workerUrl:'off'}`;break}
+      case 'bundle':{const fb=projectFiles();if(!fb.length){out='no files to bundle';cls='err';break}
+        dl('forge-bundle.md','# Forge bundle · '+proj().name+'\n'+fb.map(f=>'\n\n────────────────\nFILE: '+f.name+'\n\n'+f.content).join('\n'),'text/markdown');out='bundled '+fb.length+' files → forge-bundle.md';cls='ok';break}
       default:out=`Unknown command: ${c}. Try help.`;cls='err';
     }
   }catch(e){out=String(e.message||e);cls='err'}
@@ -2516,12 +2550,16 @@ function openModelPicker(){
     foot:`<span id="mFoot">—</span><span class="sp"></span><label class="chk"><input type="checkbox" id="mFree" ${S.freeOnly?'checked':''}/>Free only</label>`});
   let list=S.modelsCache[S.activeProvider]?.list||[];
   const paint=()=>{
-    const q=(m.el.querySelector('#mq').value||'').toLowerCase(),l=list.filter(x=>(x.id+x.name).toLowerCase().includes(q));
+    const q=(m.el.querySelector('#mq').value||'').toLowerCase();
+    const favs=S.modelFavs||(S.modelFavs=[]);
+    const l=list.filter(x=>(x.id+x.name).toLowerCase().includes(q)).sort((a,b)=>(favs.includes(b.id)?1:0)-(favs.includes(a.id)?1:0));
     m.el.querySelector('#mList').innerHTML=l.slice(0,400).map(x=>`<div class="item${x.id===S.activeModel?' on':''}" data-m="${esc(x.id)}" style="cursor:pointer">
       <div class="im"><b>${esc(x.name)}</b><small class="mono">${esc(x.id)}</small></div>
-      <div class="ia">${x.free?'<span class="tag ok">free</span>':''}${x.ctx?`<span class="tag in">${Math.round(x.ctx/1000)}k</span>`:''}${x.tools?'<span class="tag">tools</span>':''}</div></div>`).join('')
+      <div class="ia">${x.free?'<span class="tag ok">free</span>':''}${x.ctx?`<span class="tag in">${Math.round(x.ctx/1000)}k</span>`:''}${x.tools?'<span class="tag">tools</span>':''}<button class="btn q sm" data-f="${esc(x.id)}" title="Pin to top" aria-label="Pin">${I('pin')}</button></div></div>`).join('')
       ||`<div class="note">${I('info')}<span>No cached models. Reload, or type an id below.</span></div>`;
     m.el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.activeModel=b.dataset.m;saveS();paintChip();paintState();paintFoot();paintHero();m.close();toast('Model set.',{type:'ok',timeout:1800})});
+    m.el.querySelectorAll('[data-f]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.f;
+      const i=favs.indexOf(id);if(i>=0)favs.splice(i,1);else favs.push(id);saveS();paint()});
     m.el.querySelector('#mFoot').textContent=`${l.length} models · ${gateway().p.n}`;
     m.el.querySelector('#mMeta').innerHTML=`<span class="tag ac">${esc(gateway().p.n)}</span>${workerOn()?'<span class="tag ok">worker proxy</span>':'<span class="tag">direct</span>'}`;
   };
@@ -2605,10 +2643,12 @@ function openAgents(){
       box.innerHTML=`<div class="field"><label class="lbl">System persona</label><textarea id="agP" rows="10">${esc(a.persona||SYS_DEFAULT)}</textarea></div>
         <div class="grid g2"><div class="field"><label class="lbl">Reasoning mode</label><div id="agM"></div></div>
         <div class="field"><label class="lbl">Tool approval</label><div id="agA"></div></div></div>
+        <div class="field"><label class="lbl">Reply style</label><div id="agStyle"></div></div>
         <div class="field"><label class="lbl">Project knowledge</label><textarea id="agK" rows="5">${esc(a.knowledge||'')}</textarea></div>
         <button class="btn sm" id="agReset">${I('undo')}Reset persona</button>`;
       mountSelect(m.el.querySelector('#agM'),{value:a.mode||'auto',options:[{v:'fast',n:'Fast',i:'zap'},{v:'auto',n:'Auto',i:'auto'},{v:'think',n:'Thinking',i:'brain'}],onChange:v=>a.mode=v});
       mountSelect(m.el.querySelector('#agA'),{value:a.autonomy,options:[{v:'auto',n:'Auto-approve tools',i:'zap'},{v:'confirm',n:'Confirm each call',i:'shield'}],onChange:v=>{a.autonomy=v;PF.autoApprove=v==='auto';savePF();paintAgentbar()}});
+      mountSelect(m.el.querySelector('#agStyle'),{value:a.style||'default',options:[{v:'default',n:'Default'},{v:'concise',n:'Concise'},{v:'detailed',n:'Detailed'},{v:'steps',n:'Step-by-step plan'},{v:'friendly',n:'Friendly'}],onChange:v=>a.style=v});
       m.el.querySelector('#agReset').onclick=()=>m.el.querySelector('#agP').value=SYS_DEFAULT;
     }else if(tab==='scope'){
       const o=off();
@@ -2838,19 +2878,30 @@ function openSettings(){
       box.innerHTML=`<div class="field"><label class="lbl">Theme</label><div class="seg">
         <button data-th="light" aria-pressed="${PF.theme==='light'}">${I('sun')}<span>Light</span></button>
         <button data-th="dark" aria-pressed="${PF.theme==='dark'}">${I('moon')}<span>Dark</span></button></div></div>
-        <div class="field"><label class="lbl">Accent</label><div class="swatches">${[['pine','#1F5E52'],['slate','#3A4E6B'],['clay','#8A5A3B']].map(([v,c])=>`<button class="swatch${PF.accent===v?' on':''}" data-ac="${v}" style="background:${c};width:38px;height:38px" aria-label="${v}"></button>`).join('')}</div></div>
+        <div class="field"><label class="lbl">Accent</label><div class="swatches">${[['pine','#1F5E52'],['slate','#3A4E6B'],['clay','#8A5A3B'],['mint','#2E7D5B'],['amber','#A8762E'],['violet','#5B4A8A'],['rose','#A34D5F']].map(([v,c])=>`<button class="swatch${PF.accent===v?' on':''}" data-ac="${v}" style="background:${c};width:38px;height:38px" aria-label="${v}"></button>`).join('')}</div></div>
+        <div class="field"><label class="lbl">Text size</label><div class="seg">
+          <button data-fs="s" aria-pressed="${PF.fontSize==='s'}">Small</button>
+          <button data-fs="m" aria-pressed="${PF.fontSize!=='s'&&PF.fontSize!=='l'}">Default</button>
+          <button data-fs="l" aria-pressed="${PF.fontSize==='l'}">Large</button></div></div>
+        <div class="swrow"><span>Reduce motion</span><div class="sw" role="switch" aria-checked="${PF.motion===false}" id="stMotion" tabindex="0"></div></div>
+        <div class="line"><button class="btn sm" id="stResetUI">${I('undo')}Reset interface</button></div>
         <div class="field"><label class="lbl">Density</label><div class="seg"><button data-dn="cozy" aria-pressed="${PF.density==='cozy'}">Cozy</button><button data-dn="compact" aria-pressed="${PF.density==='compact'}">Compact</button></div></div>
         <div class="swrow"><span>Focus mode</span><div class="sw" role="switch" aria-checked="${PF.focus}" id="stFocus" tabindex="0"></div></div>`;
       box.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{PF.theme=b.dataset.th;savePF();paintTheme();paint()});
       box.querySelectorAll('[data-ac]').forEach(b=>b.onclick=()=>{PF.accent=b.dataset.ac;savePF();paintTheme();paint()});
       box.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{PF.density=b.dataset.dn;savePF();paintTheme();paint()});
       box.querySelector('#stFocus').onclick=()=>{PF.focus=!PF.focus;root.dataset.focus=PF.focus?'on':'off';savePF();paint();syncScrim()};
+      box.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{PF.fontSize=b.dataset.fs;savePF();paintTheme();paint()});
+      box.querySelector('#stMotion').onclick=()=>{PF.motion=PF.motion===false;savePF();paintTheme();paint()};
+      box.querySelector('#stResetUI').onclick=async()=>{if(!await confirmModal({title:'Reset interface?',body:'Theme, accent, density, text size, motion and focus return to defaults.'}))return;
+        PF.theme='dark';PF.accent='pine';PF.density='cozy';PF.focus=false;PF.fontSize='m';PF.motion=true;savePF();paintTheme();root.dataset.focus='off';syncScrim();paint();toast('Interface reset.',{type:'ok'})};
     }else if(tab==='gen'){
       box.innerHTML=`<div class="swrow"><span>Auto-approve tool calls</span><div class="sw" role="switch" aria-checked="${PF.autoApprove}" id="gApp" tabindex="0"></div></div>
         <div class="grid g2"><div class="field"><label class="lbl">Output limit</label><div id="gMax"></div></div>
         <div class="field"><label class="lbl">History</label><div id="gHist"></div></div>
         <div class="field"><label class="lbl">Max tool loops</label><div id="gLoop"></div></div>
         <div class="field"><label class="lbl">Temperature — <span id="gTempV">${PF.temp.toFixed(1)}</span></label><input type="range" id="gTemp" min="0" max="2" step="0.1" value="${PF.temp}"/></div></div>
+        <div class="swrow"><span>Enter sends the message</span><div class="sw" role="switch" aria-checked="${PF.enterSend!==false}" id="gEnter" tabindex="0"></div></div>
         <div class="swrow"><span>Stream responses</span><div class="sw" role="switch" aria-checked="${PF.stream}" id="gStream" tabindex="0"></div></div>
         <div class="note">${I('info')}<span>Auto output limit sends no cap, so replies are never cut short.</span></div>`;
       box.querySelector('#gApp').onclick=()=>{PF.autoApprove=!PF.autoApprove;savePF();paintAgentbar();paint()};
@@ -2858,6 +2909,7 @@ function openSettings(){
       mountSelect(box.querySelector('#gHist'),{value:String(PF.hist),options:[12,24,30,50,80].map(n=>({v:String(n),n:n+' messages'})),onChange:v=>{PF.hist=+v;savePF()}});
       mountSelect(box.querySelector('#gLoop'),{value:String(PF.toolLoops),options:[2,4,6,8,12,16].map(n=>({v:String(n),n:n+' loops'})),onChange:v=>{PF.toolLoops=+v;savePF()}});
       box.querySelector('#gTemp').oninput=e=>{PF.temp=+e.target.value;box.querySelector('#gTempV').textContent=PF.temp.toFixed(1);savePF()};
+      box.querySelector('#gEnter').onclick=()=>{PF.enterSend=PF.enterSend===false;savePF();paint()};
       box.querySelector('#gStream').onclick=()=>{PF.stream=!PF.stream;savePF();paint()};
     }else if(tab==='voice'){
       box.innerHTML=`<div class="field"><label class="lbl">Speech voice</label><div id="vSel"></div></div>
@@ -2886,6 +2938,7 @@ function openSettings(){
       let kb=0;try{kb=Math.round(new Blob([JSON.stringify(S)]).size/1024)}catch{}
       box.innerHTML=`<div class="stats"><div class="stat"><b>${S.projects.length}</b><span>projects</span></div><div class="stat"><b>${S.chats.length}</b><span>chats</span></div>
         <div class="stat"><b>${S.connectors.length}</b><span>connectors</span></div><div class="stat"><b>${kb} KB</b><span>stored</span></div></div>
+        <div class="card"><b>${I('info')}About Forge</b><p class="help">Forge Studio 2.0 · the autonomous AI workspace. Model gateways by BYOK &amp; OpenRouter, tools over MCP, live tasks on the Forge Cloud worker.</p></div>
         <div class="line"><button class="btn" id="dExp">${I('download')}Export</button><button class="btn" id="dImp">${I('upload')}Import</button>
         <button class="btn" id="dChat">${I('file')}Chat .md</button><button class="btn d" id="dWipe">${I('trash')}Reset all</button></div>
         <div class="card"><b>${I('lock')}Key storage</b><p class="help">Session storage by default; Remember persists to this device only.</p>
@@ -3009,6 +3062,7 @@ document.addEventListener('keydown',e=>{
   }
 });
 function paintTheme(){root.dataset.theme=PF.theme;root.dataset.accent=PF.accent;root.dataset.density=PF.density;root.dataset.focus=PF.focus?'on':'off';
+  root.dataset.font=PF.fontSize||'m';root.dataset.motion=PF.motion===false?'reduced':'normal';
   $('#themeIc').setAttribute('href',PF.theme==='light'?'#i-moon':'#i-sun');
   if(hlL){hlL.disabled=PF.theme!=='light';hlD.disabled=PF.theme==='light'}}
 $('#btnTheme').onclick=()=>{PF.theme=PF.theme==='light'?'dark':'light';savePF();paintTheme()};
@@ -3032,6 +3086,7 @@ const TASK_KINDS=[
   {id:'automate',n:'Automate work',ic:'worker',hint:'Set up or inspect background jobs',sys:'Automation task: check the gateway and worker state with http_request or the terminal, set up what is needed, and document how to trigger and verify the job.'}
 ];
 const kindOf=id=>TASK_KINDS.find(k=>k.id===id)||TASK_KINDS[0];
+const TRY_TASKS=['Build a travel planner web app','Research the 2026 EV market','Turn my notes into a slide deck'];
 const cloudTok=()=>{try{return JSON.parse(localStorage.getItem('fs.cloud')||'null')?.token||''}catch{return ''}};
 async function taskFetch(path='',opts={}){
   const r=await fetch('/api/tasks'+path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+cloudTok(),...(opts.headers||{})}});
@@ -3092,6 +3147,13 @@ function renderHomeTasks(){
   const g=$('#hvGrid');if(!g)return;
   g.innerHTML=TASK_CACHE.length?TASK_CACHE.slice(0,8).map(taskCard).join(''):'<p class="help">No tasks yet — describe one above and Forge runs it end to end.</p>';
   g.querySelectorAll('[data-task]').forEach(b=>b.onclick=()=>openTaskDetail(b.dataset.task));
+  const st=$('#hvStats');
+  if(st)st.innerHTML=`<div class="stat"><b>${S.chats.length}</b><span>chats</span></div><div class="stat"><b>${projectFiles().length}</b><span>files</span></div>
+    <div class="stat"><b>${liveConnectors().length}</b><span>connectors online</span></div><div class="stat"><b>${toolSpecs().length}</b><span>tools live</span></div>`;
+  const hf=$('#hvFiles');
+  if(hf){const rf=projectFiles().slice(-6).reverse();
+    hf.innerHTML=rf.length?rf.map(f=>`<button class="chip" data-hf="${esc(f.id)}">${I('file')}<span>${esc(f.name)}</span></button>`).join(''):'<p class="help">No files yet — tasks create them.</p>';
+    hf.querySelectorAll('[data-hf]').forEach(b=>b.onclick=()=>{closeHome();navTo('knowledge')})}
 }
 async function openHomeView(){
   if(homeEl)return;
@@ -3110,9 +3172,11 @@ async function openHomeView(){
     <div class="hv-composer">
       <textarea id="taskIn" placeholder="Describe a task, build something, research a topic…" aria-label="Task description"></textarea>
       <div class="hv-chips">${TASK_KINDS.map((k,i)=>`<button class="chip" data-kind="${k.id}" aria-pressed="${i===0}" title="${esc(k.hint)}">${I(k.ic)}<span>${k.n}</span></button>`).join('')}</div>
+      <div class="hv-chips" style="margin-top:8px">${TRY_TASKS.map(s=>`<button class="chip" data-try="${esc(s)}">${I('spark','i s')}<span>${esc(s)}</span></button>`).join('')}</div>
       <div class="hv-foot"><span class="hv-kinds">${I('agent','i s')} Agent mode</span><span style="flex:1"></span><button class="btn p" id="taskGo">${I('send','i s')} Start task</button></div>
     </div>
-    <div><div class="hv-sec">Your workspace · Recent tasks</div><div class="hv-grid" id="hvGrid" style="margin-top:12px"><p class="help">Loading…</p></div></div>
+    <div><div class="hv-sec">Your workspace · Recent tasks</div><div class="stats" id="hvStats" style="margin-top:12px"></div><div class="hv-grid" id="hvGrid" style="margin-top:12px"><p class="help">Loading…</p></div></div>
+    <div><div class="hv-sec">Recent files</div><div class="hv-chips" id="hvFiles" style="margin-top:12px"></div></div>
     <div><div class="hv-sec">Quick links</div><div class="hv-chips" style="margin-top:12px">
       <button class="chip" data-hnav="projects">${I('folder')}<span>Projects</span></button>
       <button class="chip" data-hnav="skills">${I('skill')}<span>Skills</span></button>
@@ -3124,6 +3188,7 @@ async function openHomeView(){
   document.body.appendChild(homeEl);
   let kind=TASK_KINDS[0].id;
   homeEl.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;homeEl.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))});
+  homeEl.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{ta.value=b.dataset.try;ta.dispatchEvent(new Event('input'));ta.focus()});
   const ta=homeEl.querySelector('#taskIn');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,220)+'px'});
   ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();startTask(ta.value,kind)}});
@@ -3179,16 +3244,27 @@ function openTasks(){
   const m=modal({title:'Task history',icon:'activity',size:'lg',body:'<p class="help">Loading…</p>'});
   taskList().then(()=>{
     if(!m.el.isConnected)return;
-    const done=TASK_CACHE.filter(t=>t.status==='completed').length;
-    m.body.innerHTML=TASK_CACHE.length
-      ?`<div class="con-scroll">
-        <p class="help" style="margin-bottom:8px">${TASK_CACHE.length} task${TASK_CACHE.length>1?'s':''} · ${done} completed · ${TASK_CACHE.length-done} active or unfinished. Click a task for detail.</p>
-        ${TASK_CACHE.map(taskMetaRow).join('')}</div>`
-      :'<p class="help">No tasks yet. Press the Home button in the rail and give Forge something to do.</p>';
-    m.body.querySelectorAll('[data-task]').forEach(r=>{
-      r.onclick=()=>openTaskDetail(r.dataset.task);
-      r.onkeydown=e=>{if(e.key==='Enter')openTaskDetail(r.dataset.task)};
-    });
+    let flt='all',q='';
+    const paint=()=>{
+      const done=TASK_CACHE.filter(t=>t.status==='completed').length;
+      const list=TASK_CACHE.filter(t=>flt==='all'
+        ?true
+        :flt==='active'?(t.status!=='completed'&&t.status!=='failed')
+        :t.status===flt)
+        .filter(t=>!q||String(t.title||t.prompt||'').toLowerCase().includes(q.toLowerCase()));
+      m.body.innerHTML=`<div class="line"><div class="searchbar">${I('search')}<input type="text" id="tq" value="${esc(q)}" placeholder="Search tasks"/></div></div>
+        <div class="hv-chips" style="margin:10px 0">${['all','running','completed','failed','active'].map(f=>`<button class="chip" data-tf="${f}" aria-pressed="${flt===f}">${f[0].toUpperCase()+f.slice(1)}</button>`).join('')}</div>
+        <div class="con-scroll"><p class="help" style="margin-bottom:8px">${TASK_CACHE.length} task${TASK_CACHE.length===1?'':'s'} · ${done} completed · ${TASK_CACHE.length-done} active or unfinished. Click a task for detail.</p>
+        ${list.length?list.map(taskMetaRow).join(''):'<p class="help">No tasks match this filter.</p>'}</div>`;
+      m.body.querySelectorAll('[data-tf]').forEach(b=>b.onclick=()=>{flt=b.dataset.tf;paint()});
+      const qi=m.body.querySelector('#tq');
+      qi.oninput=deb(()=>{q=qi.value;paint();const n=m.body.querySelector('#tq');n.focus();n.setSelectionRange(n.value.length,n.value.length)},150);
+      m.body.querySelectorAll('[data-task]').forEach(r=>{
+        r.onclick=()=>openTaskDetail(r.dataset.task);
+        r.onkeydown=e=>{if(e.key==='Enter')openTaskDetail(r.dataset.task)};
+      });
+    };
+    paint();
   }).catch(()=>{if(m.el.isConnected)m.body.innerHTML='<p class="help">Could not load tasks — check the connection and reopen.</p>'});
 }
 async function openTaskDetail(id){
@@ -3209,12 +3285,16 @@ async function openTaskDetail(id){
     m.card.querySelector('.mhead b').textContent=t.title||t.prompt||'Task';
     m.body.innerHTML=`<div class="con-scroll">
     <div class="swrow"><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="tag ${cls}">${esc(st)}</span>${st==='running'?'<span class="dot wa live"></span>':''}<span class="tag">${esc(kindOf(t.kind).n)}</span>${tCalls}${mdl}<span class="tag">${hhmm(new Date(t.updated_at||Date.now()).getTime())}</span></span>
-    <span style="flex:1"></span>${t.prompt?`<button class="btn q sm" data-tk="${esc(t.id)}">${I('refresh')}Run again</button>`:''}</div>
+    <span style="flex:1"></span>${t.steps?.length?`<button class="btn q sm" data-tx="${esc(t.id)}">${I('download')}Steps .md</button>`:''}${t.prompt?`<button class="btn q sm" data-tk="${esc(t.id)}">${I('refresh')}Run again</button>`:''}</div>
     ${st==='running'?`<div class="note in" style="margin:10px 0">${I('info')}<span>Live — auto-refreshing while Forge works${TASK.id===t.id?' on this device':' from another device'}.</span></div>`:''}
     <div class="hv-sec" style="margin:14px 0 8px">Steps</div>
     ${steps||'<p class="help">No recorded steps.</p>'}${sum}</div>`;
     const rb=m.body.querySelector('[data-tk]');
     if(rb)rb.onclick=()=>{m.close();const t2=t;startTask(t2.prompt,t2.kind)};
+    const xb=m.body.querySelector('[data-tx]');
+    if(xb)xb.onclick=()=>{dl((t.title||'task').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'-').slice(0,50)+'-steps.md',
+      '# '+(t.title||'Task')+'\n\n'+(t.steps||[]).map((s,i)=>'- ['+(s.ok===false?' ':'x')+'] Step '+(i+1)+': '+s.name+(s.ms?' ('+s.ms+'ms)':'')).join('\n'),'text/markdown');
+      toast('Steps exported.',{type:'ok'})};
   };
   paint(t);
   if((t.status||'running')==='running')m._tick=setInterval(async()=>{
@@ -3236,9 +3316,10 @@ function openKnowledge(){
     const nd=q.toLowerCase();let html='';
     if(tab==='files'){
       const fl=projectFiles().filter(f=>!nd||(f.name+(f.content||'')).toLowerCase().includes(nd));
-      html=fl.length?fl.map(f=>trow('file',f.name,bytes(f.size)+' · '+hhmm(new Date(f.createdAt||Date.now()).getTime()),
-        `<button class="btn q ic" data-kv="${esc(f.id)}" title="View">${I('eye')}</button><button class="btn q ic" data-kd="${esc(f.id)}" title="Download">${I('download')}</button><button class="btn q ic" data-kx="${esc(f.id)}" title="Delete">${I('trash')}</button>`)).join('')
-        :'<p class="help">No files in this project yet — the agent creates them as it works.</p>';
+      html=(fl.length?fl.map(f=>trow('file',f.name,bytes(f.size)+' · '+hhmm(new Date(f.createdAt||Date.now()).getTime()),
+        `<button class="btn q ic" data-kv="${esc(f.id)}" title="View">${I('eye')}</button><button class="btn q ic" data-kd="${esc(f.id)}" title="Download">${I('download')}</button><button class="btn q ic" data-kr="${esc(f.id)}" title="Rename">${I('edit')}</button><button class="btn q ic" data-kdup="${esc(f.id)}" title="Duplicate">${I('copy')}</button><button class="btn q ic" data-kx="${esc(f.id)}" title="Delete">${I('trash')}</button>`)).join('')
+        :'<p class="help">No files in this project yet — the agent creates them as it works.</p>')
+        +(projectFiles().length?`<button class="btn sm" id="kBundle" style="margin-top:10px">${I('download')}Export all as bundle (.md)</button>`:'');
     }else if(tab==='snips'){
       const sl=S.snippets.filter(s=>!s.projectId||s.projectId===S.activeProject).filter(s=>!nd||((s.name||'')+(s.code||'')).toLowerCase().includes(nd));
       html=sl.length?sl.map(s=>trow('code',s.name,(s.language||'text')+' · '+hhmm(new Date(s.createdAt||Date.now()).getTime()),
@@ -3258,9 +3339,24 @@ function openKnowledge(){
     if(tab==='files'){
       L.querySelectorAll('[data-kd]').forEach(b=>b.onclick=()=>{const f=projectFiles().find(x=>x.id===b.dataset.kd);if(f)dl(f.name,f.content,f.type||'text/plain')});
       L.querySelectorAll('[data-kv]').forEach(b=>b.onclick=()=>{const f=projectFiles().find(x=>x.id===b.dataset.kv);if(!f)return;
-        const vm=modal({title:f.name,icon:'file',size:'lg',body:`<div class="codeview"><pre>${esc((f.content||'').slice(0,40000))}</pre></div>`,
-          foot:`<span></span><span class="sp"></span><button class="btn" id="kvDl">${I('download')}Download</button>`});
-        vm.el.querySelector('#kvDl').onclick=()=>dl(f.name,f.content,f.type||'text/plain')});
+        const isMd=f.name.toLowerCase().endsWith('.md');
+        const vm=modal({title:f.name,icon:'file',size:'lg',
+          body:isMd?`<div id="kvPrev" style="max-height:56dvh;overflow:auto"><div class="md">${md((f.content||'').slice(0,40000))}</div></div>`
+            :`<div class="codeview"><pre>${esc((f.content||'').slice(0,40000))}</pre></div>`,
+          foot:`<span></span><span class="sp"></span>${isMd?`<button class="btn" id="kvRaw">Raw</button>`:''}<button class="btn" id="kvDl">${I('download')}Download</button>`});
+        vm.el.querySelector('#kvDl').onclick=()=>dl(f.name,f.content,f.type||'text/plain');
+        const rawB=vm.el.querySelector('#kvRaw');
+        if(rawB){let raw=false;rawB.onclick=()=>{raw=!raw;
+          vm.body.innerHTML=raw?`<div class="codeview"><pre>${esc((f.content||'').slice(0,40000))}</pre></div>`:`<div id="kvPrev" style="max-height:56dvh;overflow:auto"><div class="md">${md((f.content||'').slice(0,40000))}</div></div>`;
+          rawB.textContent=raw?'Preview':'Raw'}}});
+      L.querySelectorAll('[data-kr]').forEach(b=>b.onclick=async()=>{const f=projectFiles().find(x=>x.id===b.dataset.kr);if(!f)return;
+        const v=await promptModal({title:'Rename file',label:'File name',value:f.name});if(!v)return;
+        f.name=v.replace(/\s+/g,'-').slice(0,80);saveS();paintList();renderConsole()});
+      L.querySelectorAll('[data-kdup]').forEach(b=>b.onclick=()=>{const f=projectFiles().find(x=>x.id===b.dataset.kdup);if(!f)return;
+        const dot=f.name.lastIndexOf('.');const n=dot>0?f.name.slice(0,dot)+'-copy'+f.name.slice(dot):f.name+'-copy';
+        S.files.push({...f,id:uid(),name:n,createdAt:Date.now()});saveS();paintList();toast('Duplicated as '+n,{type:'ok',timeout:2400})});
+      const kb=L.querySelector('#kBundle');
+      if(kb)kb.onclick=()=>{const fb=projectFiles();dl('forge-bundle.md','# Forge bundle · '+proj().name+'\n'+fb.map(f=>'\n\n────────────────\nFILE: '+f.name+'\n\n'+f.content).join('\n'),'text/markdown');toast('Bundle exported.',{type:'ok'})};
       L.querySelectorAll('[data-kx]').forEach(b=>b.onclick=async()=>{const f=projectFiles().find(x=>x.id===b.dataset.kx);
         if(!await confirmModal({title:'Delete file?',body:f.name}))return;S.files=S.files.filter(x=>x.id!==f.id);saveS();paintList();renderConsole();});
     }else if(tab==='snips'){
@@ -3294,6 +3390,9 @@ function openKnowledge(){
   m.onTab=t=>{tab=t;q='';paintShell()};
 }
 taskList();
+
+const SUGS=['Build a travel planner web app…','Research the 2026 EV market and brief me…','Turn my notes into a 6-slide deck…','Connect my MCP tools and list their actions…','Analyze this dataset and chart the trend…'];
+let sugI=0;setInterval(()=>{if(document.activeElement!==input&&!input.value)input.placeholder=SUGS[sugI++%SUGS.length]},6000);
 
 /* ══ DRIVER · exposed for the cloud + pro add-on modules ══ */
 window.__forge={get S(){return S},get tok(){return JSON.parse(localStorage.getItem('fs.cloud')||'{}').token||''},get PF(){return PF},gateway,savePF,saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
