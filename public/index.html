@@ -190,7 +190,8 @@ html[data-panel=open] .shell{grid-template-columns:var(--rail) var(--sb) minmax(
 .greet h1{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:600;letter-spacing:-.025em;line-height:1.2}
 .greet h1 em{font-style:normal;color:var(--ac)}
 .greet p{color:var(--tx2);font-size:.9375rem;max-width:52ch}
-.hero-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:8px}
+.hero-cards{display:flex;flex-wrap:wrap;gap:8px}
+.hero-cards .chip{cursor:pointer}
 .hcard{display:flex;flex-direction:column;gap:4px;padding:11px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);cursor:pointer;text-align:left;min-width:0}
 .hcard:hover{border-color:var(--ac-line);background:var(--ac-bg)}
 .hcard .i{color:var(--ac)}
@@ -643,6 +644,19 @@ html[data-theme=dark]{
 .ab-tx small{display:flex;align-items:center;gap:5px}
 .ab-tx small span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .agentbar.busy .ab-orb{animation:orbPulse 1.6s ease-in-out infinite}
+.queuebar{display:flex;gap:6px;overflow-x:auto;padding:0 12px 8px;scrollbar-width:none}
+.queuebar::-webkit-scrollbar{display:none}
+.qchip{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.75rem;font-family:var(--ui);color:var(--tx);cursor:pointer;white-space:nowrap;animation:fade .18s ease;flex:none}
+.qchip .dot{width:7px;height:7px;border-radius:50%;background:var(--ac);animation:qblink 1.2s infinite}
+.qchip.done{border-color:var(--ok,3px)}
+.qchip.done .dot{background:var(--ok,#3d9a6c);animation:none}
+.qchip small{color:var(--tx3)}
+.qchip.out{opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease}
+@keyframes qblink{50%{opacity:.25}}
+.msg{position:relative}
+.actpop{position:absolute;bottom:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh3);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:40;min-width:150px;animation:fade .14s ease}
+.actpop button{display:flex;gap:8px;align-items:center;padding:7px 10px;border-radius:8px;background:none;border:none;color:var(--tx);font:inherit;font-size:.8125rem;cursor:pointer;white-space:nowrap;text-align:left}
+.actpop button:hover{background:var(--surface3)}
 @keyframes orbPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ac) 40%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
 .composer.drag{position:relative}
 .composer.drag::after{content:'Drop files to attach';position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--ac) 10%,transparent);border-radius:inherit;font-size:.8125rem;font-weight:600;color:var(--ac);pointer-events:none}
@@ -813,6 +827,7 @@ html[data-theme=dark]{
     <div class="dock" id="dock">
       <div class="dock-in">
         <button class="jump" id="jump" hidden><svg class="i s"><use href="#i-down"/></svg>Latest</button>
+        <div class="queuebar" id="queueBar" hidden></div>
         <div class="agentbar" id="agentbar">
           <button class="ab-main" id="abToggle" aria-expanded="false">
             <span class="ab-orb" id="abOrb"><svg class="i s"><use href="#i-spark"/></svg></span>
@@ -849,6 +864,7 @@ html[data-theme=dark]{
       <div class="p-tabs" role="tablist" id="pTabs">
         <button role="tab" data-p="run" aria-selected="true"><svg class="i s"><use href="#i-activity"/></svg>Run</button>
         <button role="tab" data-p="tools" aria-selected="false"><svg class="i s"><use href="#i-plug"/></svg>Tools</button>
+        <button role="tab" data-p="files" aria-selected="false"><svg class="i s"><use href="#i-file"/></svg>Files</button>
         <button role="tab" data-p="ctx" aria-selected="false"><svg class="i s"><use href="#i-book"/></svg>Context</button>
         <button role="tab" data-p="agents" aria-selected="false"><svg class="i s"><use href="#i-agent"/></svg>Agents</button>
       </div>
@@ -1263,10 +1279,10 @@ async function mcpRPC(c,method,params={},notify=false){
         c.viaWorker=true;
         try{res=await fetch(wurl(),{method:'POST',
           headers:{'Content-Type':'application/json','x-forge-token':PF.workerToken||''},body:JSON.stringify({url:c.url,payload:body,headers}),signal:AbortSignal.timeout(45000)})
-          tput(c.name+': direct call blocked — routed through the Worker gateway instead','cmd')}
-        catch(e2){throw new Error('Direct browser connection is blocked (network/CORS) and the Worker gateway is unreachable. Open the Worker pane and check URL + token.')}
+          tput(c.name+': direct call blocked — routed through the gateway instead','cmd')}
+        catch(e2){if(!res)throw new Error('Connection blocked and the gateway is unreachable — check the network and reconnect.')}
       }
-      else throw new Error('Direct connection failed (network/CORS). Set up your Worker gateway: Worker pane → URL + token, then reconnect.');
+      else throw new Error('Direct connection failed (network/CORS) — reconnecting through the gateway once Forge Cloud is signed in.');
     }
   }
   const sid=res.headers.get('Mcp-Session-Id')||res.headers.get('mcp-session-id');if(sid)c.session=sid;
@@ -1302,7 +1318,7 @@ async function connectURL(c,{silent=false}={}){
     const authErr=/HTTP 40[13]/.test(c.error);
     if(authErr&&workerOn())c.viaWorker=true;
     if(!silent){
-      if(authErr)toast(`${c.name} needs a sign-in token. Add yours once and Forge reconnects automatically.`,{type:'wa',timeout:10000,action:{label:'Add token',fn:async()=>{
+      if(authErr)toast(`${c.name} needs your provider token — Forge forgets nothing once it's saved.`,{type:'wa',timeout:9000,action:{label:'Add token',fn:async()=>{
         const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:'Paste the provider token or personal access token',hint:'Stored only in this browser and sent with every request to '+c.url});
         if(!t)return;
         c.headers={...(c.headers||{}),Authorization:'Bearer '+t};c.viaWorker=true;saveS();
@@ -1346,12 +1362,14 @@ const BUILTINS=[
 ];
 const READONLY=['list_files','read_file','search_workspace'];
 function toolSpecs(){
-  const o=off(),out=[];
-  BUILTINS.forEach(([n,d,,s])=>{if(!o.tools.includes(n))out.push({type:'function',function:{name:n,description:d,parameters:s}})});
-  liveConnectors().forEach(c=>c.tools.forEach(t=>out.push({type:'function',function:{
-    name:`mcp__${c.id}__${t.name}`,description:`[${c.name}] ${t.description}`.slice(0,900),parameters:t.schema||{type:'object',properties:{}}}})));
-  activeSkills().filter(s=>s.asTool).forEach(s=>out.push({type:'function',function:{name:'skill__'+s.id,
-    description:`[Skill] ${s.name}: ${s.description}`.slice(0,900),parameters:{type:'object',properties:{input:{type:'string'}},required:['input']}}}));
+  const o=off(),ox=o.toolX||[],out=[];
+  BUILTINS.forEach(([n,d,,s])=>{if(!o.tools.includes(n)&&!ox.includes(n))out.push({type:'function',function:{name:n,description:d,parameters:s}})});
+  liveConnectors().forEach(c=>c.tools.forEach(t=>{const fn=`mcp__${c.id}__${t.name}`;if(ox.includes(fn))return;
+    out.push({type:'function',function:{
+    name:fn,description:`[${c.name}] ${t.description}`.slice(0,900),parameters:t.schema||{type:'object',properties:{}}}})}));
+  activeSkills().filter(s=>s.asTool).forEach(s=>{const fn='skill__'+s.id;if(ox.includes(fn))return;
+    out.push({type:'function',function:{name:fn,
+    description:`[Skill] ${s.name}: ${s.description}`.slice(0,900),parameters:{type:'object',properties:{input:{type:'string'}},required:['input']}}})});
   return out;
 }
 async function runJS(code){
@@ -1546,10 +1564,11 @@ function msgNode(m,c){
       if(m.stopped)body+=`<div class="help" style="color:var(--warn)">Stopped by you.</div>`}
   }
   const acts=[];
-  if(!m.pending){acts.push(`<button data-a="copy">${I('copy')}Copy</button>`);
+  if(!m.pending){
+    acts.push(`<button data-a="copy">${I('copy')}Copy</button>`);
     if(u)acts.push(`<button data-a="edit">${I('edit')}Edit</button>`);
-    else{acts.push(`<button data-a="retry">${I('refresh')}Regenerate</button>`);acts.push(`<button data-a="speak">${I('vol')}Speak</button>`);acts.push(`<button data-a="snip">${I('book')}Save</button>`)}
-    acts.push(`<button data-a="fork">${I('branch')}Fork</button>`);acts.push(`<button data-a="delmsg">${I('trash')}Delete</button>`)}
+    else acts.push(`<button data-a="retry">${I('refresh')}Regenerate</button>`);
+    acts.push(`<button data-a="more" aria-label="More actions"><b style="letter-spacing:2px;line-height:1">⋯</b></button>`)}
   const meta=[];
   if(!u&&!m.pending){if(m.model)meta.push(`<span class="tag ac">${esc(m.model)}</span>`);
     if(m.tokens)meta.push(`<span class="tag">${m.tokens.toLocaleString()} tok</span>`);
@@ -1694,6 +1713,17 @@ thread.addEventListener('click',async e=>{
   if(b.dataset.a==='fix'){openProviders();return}
   const art=b.closest('.msg'),id=art?.dataset.id,i=c.messages.findIndex(m=>m.id===id),m=c.messages[i];if(!m)return;
   const a=b.dataset.a;
+  if(a==='more'){
+    document.querySelectorAll('.actpop').forEach(p=>p.remove());
+    const pop=document.createElement('div');pop.className='actpop';
+    const opts=m.role==='user'?[['edit','edit','Edit'],['fork','branch','Fork'],['delmsg','trash','Delete']]
+                :[['retry','refresh','Regenerate'],['speak','vol','Speak'],['snip','book','Save to Knowledge'],['fork','branch','Fork'],['delmsg','trash','Delete']];
+    pop.innerHTML=opts.map(([aa,ic,n])=>`<button data-a="${aa}">${I(ic)}${n}</button>`).join('');
+    b.closest('.msg').appendChild(pop);
+    pop.addEventListener('click',()=>{pop.remove()});
+    const close=ev=>{if(!pop.contains(ev.target)){pop.remove();document.removeEventListener('click',close)}};
+    setTimeout(()=>document.addEventListener('click',close),0);
+    return}
   if(a==='copy'){const t=m.role==='user'?m.content:(m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n');
     if(await clip(t))toast('Copied.',{type:'ok',timeout:1600});return}
   if(a==='speak'){speak((m.segments||[]).filter(s=>s.type==='text').map(s=>s.text).join('\n'));return}
@@ -1808,6 +1838,22 @@ function openMoreSheet(){
   m.body.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{m.close();navTo(b.dataset.go)});
 }
 function setStep(s){curStep=s;paintAgentbar();pubTaskStatus(s)}
+const Q_STATE={};
+function renderQueue(){
+  const bar=$('#queueBar');if(!bar)return;
+  TASK_CACHE.forEach(t=>{
+    const prev=Q_STATE[t.id];
+    if(prev==='running'&&t.status&&t.status!=='running'&&t.status!=='paused'){Q_STATE[t.id]='done';Q_STATE[t.id+'__at']=Date.now();setTimeout(renderQueue,2800)}
+    else if(t.status==='running')Q_STATE[t.id]='running';
+  });
+  const items=[];
+  if(live)items.push({id:'__live',title:chat()?.title||'Forge is working',st:'running',go:()=>toggleConsole(true)});
+  TASK_CACHE.filter(t=>t.status==='running').forEach(t=>items.push({id:t.id,title:String(t.title||t.prompt||'Task'),st:'running',go:()=>openTaskDetail(t.id)}));
+  TASK_CACHE.forEach(t=>{if(Q_STATE[t.id]==='done')items.push({id:'done:'+t.id,title:String(t.title||t.prompt||'Task'),st:'done',go:()=>openTaskDetail(t.id)})});
+  bar.hidden=!items.length;
+  bar.innerHTML=items.map(x=>`<button class="qchip${x.st==='done'?' done':''}" data-q="${esc(x.id)}"><span class="dot"></span>${x.st==='done'?I('check','i s'):''}<span>${esc(x.title.slice(0,46))}</span><small>${x.st==='done'?'done':'live'}</small></button>`).join('');
+  bar.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>items.find(x=>x.id===b.dataset.q)?.go());
+}
 function paintAgentbar(){
   const bar=$('#agentbar');
   bar.classList.toggle('busy',!!live);
@@ -1824,12 +1870,15 @@ function paintAgentbar(){
   $('#abShield').title=PF.autoApprove?'Auto-approve ON — tools run without asking':'Auto-approve OFF — you confirm each tool';
   $('#abChev').innerHTML=`<use href="#i-${PF.consoleOpen?'chev':'up'}"/>`;
   $('#abToggle').setAttribute('aria-expanded',String(PF.consoleOpen));
+  renderQueue();
 }
 function toggleConsole(force){
   PF.consoleOpen=force===undefined?!PF.consoleOpen:force;savePF();
   $('#console').hidden=!PF.consoleOpen;paintAgentbar();renderConsole();
 }
 $('#abToggle').onclick=()=>toggleConsole();
+$('#abFiles').onclick=()=>openPanel('files');
+$('#abCount').onclick=()=>toggleConsole(true);
 $('#conClose').onclick=()=>toggleConsole(false);
 $('#abStop').onclick=()=>{if(live){live.stopped=true;try{live.ac.abort()}catch{}}};
 $('#abShield').onclick=()=>{PF.autoApprove=!PF.autoApprove;savePF();paintAgentbar();
@@ -2206,7 +2255,7 @@ function paintHero(){
     {i:'palette',t:'Visual studio',s:'Moodboard + sketchpad',a:'visuals'},
     {i:'worker',t:'Cloudflare Worker',s:workerOn()?'Proxy active':'Kill CORS in one deploy',a:'worker'}
   ];
-  $('#heroCards').innerHTML=cards.map(c=>`<button class="hcard" data-h="${c.a}">${I(c.i,'i l')}<b>${esc(c.t)}</b><small>${esc(c.s)}</small></button>`).join('');
+  $('#heroCards').innerHTML=cards.map(c=>`<button class="chip" data-h="${c.a}">${I(c.i,'i s')}<span>${esc(c.t)}</span></button>`).join('');
   $('#heroCards').querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>navTo(b.dataset.h));
   const h=new Date().getHours();
   $('#greetH').innerHTML=esc(h<5?'Working late':h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night')+', <em>Mus’ab</em>';
@@ -2242,11 +2291,53 @@ function renderPanel(){
     $('#pAgent').onclick=openAgents;$('#pExport').onclick=exportChat;
   }
   else if(tab==='tools'){
+    const o=off(),ox=o.toolX||(o.toolX=[]);
     const specs=toolSpecs();
-    body.innerHTML=`<div class="card"><b>${I('plug')}Live registry</b><p class="help">${specs.length} tools exposed to the model.</p>
-      <div class="scroll-list">${specs.map(s=>`<div class="item"><div class="im"><b class="mono" style="font-size:.75rem">${esc(s.function.name)}</b><small>${esc(s.function.description||'').slice(0,130)}</small></div></div>`).join('')}</div>
-      <div class="line"><button class="btn sm" id="tCon">${I('link')}Connectors</button><button class="btn sm" id="tSk">${I('skill')}Skills</button><button class="btn sm" id="tPlus">${I('plus')}Tools menu</button></div></div>`;
-    $('#tCon').onclick=()=>openConnectors('connected');$('#tSk').onclick=openSkills;$('#tPlus').onclick=e=>openPlus(e.currentTarget);
+    body.innerHTML=`<div class="card"><b>${I('plug')}Live registry</b><p class="help">${specs.length} tools exposed to the model. Tap the eye to hide one from the agent.</p>
+      <div class="scroll-list">${specs.map(s=>`<div class="item"><div class="im"><b class="mono" style="font-size:.75rem">${esc(s.function.name)}</b><small>${esc(s.function.description||'').slice(0,130)}</small></div>
+      <div class="ia"><button class="btn q sm" data-tof="${esc(s.function.name)}" title="Hide from agent">${I('eye')}</button></div></div>`).join('')||'<p class="help">Nothing live — connect a gateway, connector or skill.</p>'}</div>
+      <div class="line"><button class="btn sm" id="tCon">${I('link')}Connectors</button><button class="btn sm" id="tSk">${I('skill')}Skills</button><button class="btn sm" id="tPlus">${I('plus')}Tools menu</button></div></div>
+      ${ox.length?`<div class="card"><b>${I('eye')}Hidden tools (${ox.length})</b><div class="scroll-list">${ox.map(n=>`<div class="item"><div class="im"><b class="mono" style="font-size:.75rem">${esc(n)}</b></div>
+      <div class="ia"><button class="btn q sm" data-ton="${esc(n)}" title="Re-enable">${I('refresh')}</button></div></div>`).join('')}</div></div>`:''}`;
+    body.querySelectorAll('[data-tof]').forEach(b=>b.onclick=()=>{if(!ox.includes(b.dataset.tof))ox.push(b.dataset.tof);saveS();paintFoot();renderPanel()});
+    body.querySelectorAll('[data-ton]').forEach(b=>b.onclick=()=>{o.toolX=o.toolX.filter(x=>x!==b.dataset.ton);saveS();paintFoot();renderPanel()});
+    $('#tCon').onclick=()=>openConnectors('connected');$('#tSk').onclick=openSkills;
+  }
+  else if(tab==='files'){
+    body.innerHTML=`<div class="line"><div class="searchbar">${I('search')}<input type="text" id="wfq" placeholder="Search files"/></div>
+      <button class="btn p sm" id="wfNew">${I('plus')}New</button><button class="btn sm" id="wfBundle">${I('download')}Bundle</button></div>
+      <div class="scroll-list" id="wfList"></div>`;
+    const paintW=q=>{const fl=projectFiles().filter(f=>!q||(f.name+(f.content||'')).toLowerCase().includes(q));
+      $('#wfList').innerHTML=fl.length?fl.map(f=>`<div class="item"><div class="im"><b>${esc(f.name)}</b><small>${bytes(f.size)} · ${hhmm(new Date(f.createdAt||Date.now()).getTime())}</small></div>
+      <div class="ia"><button class="btn q sm" data-wv="${esc(f.id)}" title="Preview">${I('eye')}</button><button class="btn q sm" data-wr="${esc(f.id)}" title="Rename">${I('edit')}</button><button class="btn q sm" data-wd="${esc(f.id)}" title="Download">${I('download')}</button><button class="btn q sm" data-wx="${esc(f.id)}" title="Delete">${I('trash')}</button></div></div>`).join('')
+      :'<p class="help">No files yet — create one, drop files on the composer, or let a task produce files.</p>';
+      $('#wfList').querySelectorAll('[data-wv]').forEach(b=>b.onclick=()=>{const f=S.files.find(x=>x.id===b.dataset.wv);if(!f)return;
+        const isMd=f.name.toLowerCase().endsWith('.md');
+        const vm=modal({title:f.name,icon:'file',size:'lg',
+          body:isMd?`<div style="max-height:56dvh;overflow:auto"><div class="md">${md((f.content||'').slice(0,40000))}</div></div>`
+            :`<div class="codeview"><pre>${esc((f.content||'').slice(0,40000))}</pre></div>`,
+          foot:`<span></span><span class="sp"></span>${isMd?`<button class="btn" id="wvRaw">Raw</button>`:''}<button class="btn" id="wvDl">${I('download')}Download</button>`});
+        vm.el.querySelector('#wvDl').onclick=()=>dl(f.name,f.content,f.type||'text/plain');
+        const rb=vm.el.querySelector('#wvRaw');
+        if(rb){let raw=false;rb.onclick=()=>{raw=!raw;
+          vm.body.innerHTML=raw?`<div class="codeview"><pre>${esc((f.content||'').slice(0,40000))}</pre></div>`:`<div style="max-height:56dvh;overflow:auto"><div class="md">${md((f.content||'').slice(0,40000))}</div></div>`;
+          rb.textContent=raw?'Preview':'Raw'}}});
+      $('#wfList').querySelectorAll('[data-wr]').forEach(b=>b.onclick=async()=>{const f=S.files.find(x=>x.id===b.dataset.wr);if(!f)return;
+        const v=await promptModal({title:'Rename file',label:'File name',value:f.name});if(!v)return;
+        f.name=v.replace(/\s+/g,'-').slice(0,80);saveS();paintW(q);renderConsole()});
+      $('#wfList').querySelectorAll('[data-wd]').forEach(b=>b.onclick=()=>{const f=S.files.find(x=>x.id===b.dataset.wd);if(f)dl(f.name,f.content,f.type||'text/plain')});
+      $('#wfList').querySelectorAll('[data-wx]').forEach(b=>b.onclick=async()=>{const f=S.files.find(x=>x.id===b.dataset.wx);if(!f)return;
+        if(await confirmModal({title:'Delete file?',body:f.name})){S.files=S.files.filter(x=>x.id!==f.id);saveS();paintW(q);renderConsole()}});
+    };
+    const si=body.querySelector('#wfq');
+    si.oninput=deb(()=>paintW(si.value.trim().toLowerCase()),120);
+    body.querySelector('#wfNew').onclick=async()=>{const n=await promptModal({title:'New file',label:'File name',placeholder:'notes.md'});if(n){
+      S.files.push({id:uid(),projectId:S.activeProject,name:n,type:'text',content:'',size:0,createdAt:Date.now()});saveS();paintW('');renderConsole()}};
+    body.querySelector('#wfBundle').onclick=()=>{const fb=projectFiles();
+      if(!fb.length)return toast('No files to bundle.',{type:'wa'});
+      dl('forge-bundle.md','# Forge bundle · '+proj().name+'\n'+fb.map(f=>'\n\n────────────────\nFILE: '+f.name+'\n\n'+f.content).join('\n'),'text/markdown');
+      toast('Bundle exported.',{type:'ok'})};
+    paintW('');
   }
   else if(tab==='ctx'){
     const fl=projectFiles();
@@ -2403,7 +2494,7 @@ function openConnectors(cat='all',focusId=null){
     if(note)note.innerHTML=`<div class="note in">${I('refresh')}<span>Handshaking with ${esc(url)}…</span></div>`;
     toggleConsole(true);PF.consoleTab='term';savePF();
     const ok=await connectURL(c,{silent});
-    if(note)note.innerHTML=`<div class="note ${ok?'ok':'er'}">${I(ok?'check':'alert')}<span>${ok?`${c.tools.length} tools online and auto-enabled for ${esc(proj().name)}.`:'Handshake failed: '+esc(c.error||'')+' — endpoints marked “provider sign-in” need an access token (tap reconnect to add one), and CORS-blocked endpoints need the Worker proxy.'}</span></div>`;
+    if(note)note.innerHTML=`<div class="note ${ok?'ok':'er'}">${I(ok?'check':'alert')}<span>${ok?`${c.tools.length} tools online and auto-enabled for ${esc(proj().name)}.`:'Handshake with '+esc(c.name||'')+': '+esc(c.error||'')+' — reconnect usually clears this.'}</span></div>`;
     paintFoot();paintHero();
     if(ok){tab='mine';conFocus=c.id;m.el.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab==='mine')));paintPane()}
     return ok;
@@ -3110,7 +3201,7 @@ function pubTaskEnd(m){
 async function taskList(){
   try{const d=await taskFetch('?limit=100');TASK_CACHE=Array.isArray(d.tasks)?d.tasks:TASK_CACHE}
   catch{}
-  paintTasksBadge();renderSidebarTasks();return TASK_CACHE;
+  paintTasksBadge();renderSidebarTasks();renderQueue();return TASK_CACHE;
 }
 function renderSidebarTasks(){
   const w=$('#sbTasks');if(!w)return;
@@ -3286,7 +3377,7 @@ async function openTaskDetail(id){
     m.body.innerHTML=`<div class="con-scroll">
     <div class="swrow"><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="tag ${cls}">${esc(st)}</span>${st==='running'?'<span class="dot wa live"></span>':''}<span class="tag">${esc(kindOf(t.kind).n)}</span>${tCalls}${mdl}<span class="tag">${hhmm(new Date(t.updated_at||Date.now()).getTime())}</span></span>
     <span style="flex:1"></span>${t.steps?.length?`<button class="btn q sm" data-tx="${esc(t.id)}">${I('download')}Steps .md</button>`:''}${t.prompt?`<button class="btn q sm" data-tk="${esc(t.id)}">${I('refresh')}Run again</button>`:''}</div>
-    ${st==='running'?`<div class="note in" style="margin:10px 0">${I('info')}<span>Live — auto-refreshing while Forge works${TASK.id===t.id?' on this device':' from another device'}.</span></div>`:''}
+    ${st==='running'?`<div class="note in" style="margin:10px 0">${I('info')}<span>Live — auto-refreshing while Forge works${TASK.id===t.id?' on this device':' from another device'}.</span><span style="flex:1"></span>${TASK.id===t.id?'<button class="btn d sm" id="tStop">Stop run</button>':''}</div>`:''}
     <div class="hv-sec" style="margin:14px 0 8px">Steps</div>
     ${steps||'<p class="help">No recorded steps.</p>'}${sum}</div>`;
     const rb=m.body.querySelector('[data-tk]');
@@ -3295,6 +3386,9 @@ async function openTaskDetail(id){
     if(xb)xb.onclick=()=>{dl((t.title||'task').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'-').slice(0,50)+'-steps.md',
       '# '+(t.title||'Task')+'\n\n'+(t.steps||[]).map((s,i)=>'- ['+(s.ok===false?' ':'x')+'] Step '+(i+1)+': '+s.name+(s.ms?' ('+s.ms+'ms)':'')).join('\n'),'text/markdown');
       toast('Steps exported.',{type:'ok'})};
+    const sb=m.body.querySelector('#tStop');
+    if(sb)sb.onclick=()=>{if(live){live.stopped=true;try{live.ac.abort()}catch{}}
+      toast('Stopping the run…',{type:'in'});setTimeout(()=>{if(m.el.isConnected)paint(t)},600)};
   };
   paint(t);
   if((t.status||'running')==='running')m._tick=setInterval(async()=>{
@@ -3393,6 +3487,18 @@ taskList();
 
 const SUGS=['Build a travel planner web app…','Research the 2026 EV market and brief me…','Turn my notes into a 6-slide deck…','Connect my MCP tools and list their actions…','Analyze this dataset and chart the trend…'];
 let sugI=0;setInterval(()=>{if(document.activeElement!==input&&!input.value)input.placeholder=SUGS[sugI++%SUGS.length]},6000);
+
+/* ══ GATEWAY AUTO-PROVISION — signed-in users never paste URLs or tokens ══ */
+(async()=>{try{
+  const r=await fetch('/api/gateway');if(!r.ok)return;
+  const d=await r.json();if(!d.url||!d.token)return;
+  let ch=false;
+  if(PF.workerUrl!==d.url){PF.workerUrl=d.url;ch=true}
+  if(PF.workerToken!==d.token){PF.workerToken=d.token;ch=true}
+  if(ch){savePF();paintState();paintFoot();
+    const broken=S.connectors.filter(c=>c.status==='error');
+    broken.forEach((c,i)=>setTimeout(()=>connectURL(c,{silent:true}),i*400))}
+}catch{}})();
 
 /* ══ DRIVER · exposed for the cloud + pro add-on modules ══ */
 window.__forge={get S(){return S},get tok(){return JSON.parse(localStorage.getItem('fs.cloud')||'{}').token||''},get PF(){return PF},gateway,savePF,saveS,layout,renderThread,renderChats,renderPanel,renderConsole,paintChip,paintFoot,paintState,paintHero,listModels,PROVIDERS,chat,send,generate,openModelPicker,openWorker,est,toast};
