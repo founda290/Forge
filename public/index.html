@@ -963,7 +963,7 @@ const CATS=[{id:'all',n:'All providers',i:'layers'},{id:'gateway',n:'Gateways',i
 const provById=id=>PROVIDERS.find(p=>p.id===id);
 
 /* ══ CONNECTOR DIRECTORY — URL only, real remote MCP endpoints ══ */
-const DIRECTORY=[
+const CF_SERVICES=[
  {n:'Cloudflare Docs',u:'https://docs.mcp.cloudflare.com/mcp',c:'cloudflare',i:'cloud',auth:'public',d:'Search Cloudflare documentation live.'},
  {n:'Cloudflare Workers Bindings',u:'https://bindings.mcp.cloudflare.com/mcp',c:'cloudflare',i:'worker',auth:'oauth',d:'KV, R2, D1 and Workers bindings.'},
  {n:'Cloudflare Workers Builds',u:'https://builds.mcp.cloudflare.com/mcp',c:'cloudflare',i:'worker',auth:'oauth',d:'Inspect and manage Workers builds.'},
@@ -977,7 +977,10 @@ const DIRECTORY=[
  {n:'Cloudflare GraphQL Analytics',u:'https://graphql.mcp.cloudflare.com/mcp',c:'cloudflare',i:'db',auth:'oauth',d:'Run analytics GraphQL queries.'},
  {n:'Cloudflare Audit Logs',u:'https://auditlogs.mcp.cloudflare.com/mcp',c:'cloudflare',i:'shield',auth:'oauth',d:'Account audit trail.'},
  {n:'Cloudflare DEX',u:'https://dex.mcp.cloudflare.com/mcp',c:'cloudflare',i:'activity',auth:'oauth',d:'Digital experience monitoring.'},
- {n:'Cloudflare CASB',u:'https://casb.mcp.cloudflare.com/mcp',c:'cloudflare',i:'lock',auth:'oauth',d:'SaaS security posture findings.'},
+ {n:'Cloudflare CASB',u:'https://casb.mcp.cloudflare.com/mcp',c:'cloudflare',i:'lock',auth:'oauth',d:'SaaS security posture findings.'}
+];
+const DIRECTORY=[
+ {n:'Cloudflare — all in one',u:'',c:'cloudflare',i:'cloud',auth:'mixed',d:'One tap connects every Cloudflare MCP server — docs, bindings, builds, observability, sandbox…',all:CF_SERVICES},
  {n:'GitHub',u:'https://api.githubcopilot.com/mcp/',c:'dev',i:'branch',auth:'oauth',d:'Repos, issues, PRs, code search.'},
  {n:'GitHub · repos (read-only)',u:'https://api.githubcopilot.com/mcp/x/repos/readonly',c:'dev',i:'branch',auth:'oauth',d:'Read-only repository toolset.'},
  {n:'Sentry',u:'https://mcp.sentry.dev/mcp',c:'dev',i:'alert',auth:'oauth',d:'Issues, releases and stack traces.'},
@@ -1236,11 +1239,24 @@ async function mcpRPC(c,method,params={},notify=false){
   const headers={'Content-Type':'application/json',Accept:'application/json, text/event-stream',...(c.headers||{})};
   if(c.session)headers['Mcp-Session-Id']=c.session;
   let res;
-  if(c.viaWorker&&workerOn()){
-    try{res=await fetch(PF.workerUrl.replace(/\/+$/,'')+'/mcp',{method:'POST',
+  const wurl=()=>PF.workerUrl.replace(/\/+$/,'')+'/mcp';
+  if(workerOn()&&c.viaWorker!==false){
+    try{res=await fetch(wurl(),{method:'POST',
       headers:{'Content-Type':'application/json','x-forge-token':PF.workerToken||''},body:JSON.stringify({url:c.url,payload:body,headers}),signal:AbortSignal.timeout(45000)})}
-    catch(e){c.viaWorker=false;tput(c.name+': worker route failed - using direct connection','cmd')}};
-  if(!res)res=await fetch(c.url,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
+    catch(e){c.viaWorker=false;tput(c.name+': worker route failed — trying direct connection','cmd')}};
+  if(!res){
+    try{res=await fetch(c.url,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(45000)})}
+    catch(e){
+      if(workerOn()){
+        c.viaWorker=true;
+        try{res=await fetch(wurl(),{method:'POST',
+          headers:{'Content-Type':'application/json','x-forge-token':PF.workerToken||''},body:JSON.stringify({url:c.url,payload:body,headers}),signal:AbortSignal.timeout(45000)})
+          tput(c.name+': direct call blocked — routed through the Worker gateway instead','cmd')}
+        catch(e2){throw new Error('Direct browser connection is blocked (network/CORS) and the Worker gateway is unreachable. Open the Worker pane and check URL + token.')}
+      }
+      else throw new Error('Direct connection failed (network/CORS). Set up your Worker gateway: Worker pane → URL + token, then reconnect.');
+    }
+  }
   const sid=res.headers.get('Mcp-Session-Id')||res.headers.get('mcp-session-id');if(sid)c.session=sid;
   if(notify)return null;
   if(!res.ok)throw new Error('HTTP '+res.status+' '+(await res.text()).slice(0,160));
@@ -1271,7 +1287,18 @@ async function connectURL(c,{silent=false}={}){
   }catch(e){
     c.status='error';c.error=String(e.message||e);
     tput(`${c.name}: ${c.error}`,'err');
-    if(!silent)toast(`${c.name}: ${c.error}`,{type:'er',timeout:7000,action:{label:'Worker proxy',fn:openWorker}});
+    const authErr=/HTTP 40[13]/.test(c.error);
+    if(authErr&&workerOn())c.viaWorker=true;
+    if(!silent){
+      if(authErr)toast(`${c.name} needs a sign-in token. Add yours once and Forge reconnects automatically.`,{type:'wa',timeout:10000,action:{label:'Add token',fn:async()=>{
+        const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:'Paste the provider token or personal access token',hint:'Stored only in this browser and sent with every request to '+c.url});
+        if(!t)return;
+        c.headers={...(c.headers||{}),Authorization:'Bearer '+t};c.viaWorker=true;saveS();
+        const ok2=await connectURL(c,{silent:true});
+        toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Still failing: ${c.error}`,{type:ok2?'ok':'er',timeout:6000});
+      }}});
+      else toast(`${c.name}: ${c.error}`,{type:'er',timeout:7000,action:{label:'Worker proxy',fn:openWorker}});
+    }
   }
   saveS();paintFoot();paintAgentbar();renderConsole();renderPanel();
   return c.status==='online';
@@ -2254,13 +2281,20 @@ function openConnectors(cat='all',focusId=null){
     const grid=pane.querySelector('#dGrid');
     grid.innerHTML=list.map((d,i)=>{
       const already=S.connectors.find(c=>c.url===d.u&&d.u);
-      return `<button class="pcard${already?' on':''}" data-d="${DIRECTORY.indexOf(d)}">
+      const live=d.all?d.all.filter(x=>S.connectors.some(c=>c.url===x.u&&c.status==='online')).length:0;
+      return `<button class="pcard${already||live?' on':''}" data-d="${DIRECTORY.indexOf(d)}">
         <div class="pt">${I(d.i)}<b>${esc(d.n)}</b>${already?I('check'):''}</div>
-        <small>${esc(d.d)}</small><div class="urline">${esc(d.u||'paste your own URL')}</div>
-        <div class="ptags"><span class="tag ${d.auth==='public'?'ok':'wa'}">${d.auth==='public'?'no sign-in':'provider sign-in'}</span>${already?`<span class="tag ac">${already.tools.length} tools</span>`:''}</div></button>`}).join('')
+        <small>${esc(d.d)}</small><div class="urline">${esc(d.all?d.all.length+' bundled servers':(d.u||'paste your own URL'))}</div>
+        <div class="ptags"><span class="tag ${d.auth==='public'?'ok':d.auth==='mixed'?'ac':'wa'}">${d.auth==='public'?'no sign-in':d.auth==='mixed'?'mixed sign-in':'provider sign-in'}</span>${already?`<span class="tag ac">${already.tools.length} tools</span>`:live?`<span class="tag ac">${live} live</span>`:''}</div></button>`}).join('')
       ||'<p class="help">No endpoint matches.</p>';
     grid.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{
       const d=DIRECTORY[+b.dataset.d];
+      if(d.all){(async()=>{
+        let ok=0;
+        for(const x of d.all){const c2=await addByURL(x.u,x,{silent:true});if(c2)ok++}
+        toast('Cloudflare all-in-one: '+ok+'/'+d.all.length+' endpoints connected'+(workerOn()?'':' — add your Worker gateway for CORS-blocked ones'),{type:ok?'ok':'wa',timeout:8000});
+        tab='mine';m.el.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab==='mine')));paintPane();
+      })();return}
       if(!d.u){pane.querySelector('#dUrl').focus();return}
       pane.querySelector('#dUrl').value=d.u;addByURL(d.u,d);
     });
@@ -2322,7 +2356,7 @@ function openConnectors(cat='all',focusId=null){
     pane.querySelector('#mAll').onclick=async()=>{for(const c of S.connectors)await connectURL(c,{silent:true});paintList();toast('Reconnect pass complete.',{type:'ok'})};
     paintList();
   }
-  async function addByURL(url,meta){
+  async function addByURL(url,meta,{silent=false}={}){
     if(!url){toast('Paste an MCP URL first.',{type:'wa'});return}
     if(!/^https?:\/\//i.test(url)){toast('URL must start with http:// or https://',{type:'er'});return}
     let c=S.connectors.find(x=>x.url===url);
@@ -2334,10 +2368,11 @@ function openConnectors(cat='all',focusId=null){
     const note=pane.querySelector('#dNote');
     if(note)note.innerHTML=`<div class="note in">${I('refresh')}<span>Handshaking with ${esc(url)}…</span></div>`;
     toggleConsole(true);PF.consoleTab='term';savePF();
-    const ok=await connectURL(c);
-    if(note)note.innerHTML=`<div class="note ${ok?'ok':'er'}">${I(ok?'check':'alert')}<span>${ok?`${c.tools.length} tools online and auto-enabled for ${esc(proj().name)}.`:'Handshake failed: '+esc(c.error||'')+' — try the Worker proxy, or the endpoint may need provider sign-in.'}</span></div>`;
+    const ok=await connectURL(c,{silent});
+    if(note)note.innerHTML=`<div class="note ${ok?'ok':'er'}">${I(ok?'check':'alert')}<span>${ok?`${c.tools.length} tools online and auto-enabled for ${esc(proj().name)}.`:'Handshake failed: '+esc(c.error||'')+' — endpoints marked “provider sign-in” need an access token (tap reconnect to add one), and CORS-blocked endpoints need the Worker proxy.'}</span></div>`;
     paintFoot();paintHero();
     if(ok){tab='mine';conFocus=c.id;m.el.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab==='mine')));paintPane()}
+    return ok;
   }
   m.onTab=t=>{tab=t;paintPane()};
   m.el.querySelector('#dWorker').onclick=openWorker;
