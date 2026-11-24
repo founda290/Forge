@@ -1317,15 +1317,21 @@ async function connectURL(c,{silent=false}={}){
     tput(`${c.name}: ${c.error}`,'err');
     const authErr=/HTTP 40[13]/.test(c.error);
     if(authErr&&workerOn())c.viaWorker=true;
+    const hasTok=!!(c.headers?.Authorization);
     if(!silent){
-      if(authErr)toast(`${c.name} needs your provider token — Forge forgets nothing once it's saved.`,{type:'wa',timeout:9000,action:{label:'Add token',fn:async()=>{
-        const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:'Paste the provider token or personal access token',hint:'Stored only in this browser and sent with every request to '+c.url});
-        if(!t)return;
-        c.headers={...(c.headers||{}),Authorization:'Bearer '+t};c.viaWorker=true;saveS();
-        const ok2=await connectURL(c,{silent:true});
-        toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Still failing: ${c.error}`,{type:ok2?'ok':'er',timeout:6000});
-      }}});
-      else toast(`${c.name}: ${c.error}`,{type:'er',timeout:7000,action:{label:'Worker proxy',fn:openWorker}});
+      if(authErr&&!hasTok&&!c.nag){
+        c.nag=true;
+        toast(`${c.name} needs your provider token — Forge forgets nothing once it's saved.`,{type:'wa',timeout:9000,action:{label:'Add token',fn:async()=>{
+          const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:'Paste the provider token or personal access token'});
+          if(!t)return;
+          const v=t.trim().replace(/^Bearer\s+/i,'').replace(/^token\s+/i,'').replace(/^["\']+|["\']+$/g,'');
+          c.headers={...(c.headers||{}),Authorization:'Bearer '+v};c.viaWorker=true;c.nag=false;saveS();paintFoot();
+          const ok2=await connectURL(c,{silent:true});
+          toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Token saved but ${c.name} rejected it — does the account have access to this service?`,{type:ok2?'ok':'er',timeout:7000});
+        }}});
+      }
+      else if(authErr&&hasTok)toast(`${c.name}: saved token was rejected — reconnect or replace it in Connectors.`,{type:'er',timeout:7000,action:{label:'Replace token',fn:async()=>{c.nag=false;toast('Cut a fresh token from the provider, then paste it.',{type:'in',timeout:4000})}}});
+      else toast(`${c.name}: ${c.error}`,{type:'er',timeout:7000,action:{label:'Retry',fn:async()=>{await connectURL(c)}}});
     }
   }
   saveS();paintFoot();paintAgentbar();renderConsole();renderPanel();
@@ -2449,9 +2455,17 @@ function openConnectors(cat='all',focusId=null){
         <div class="ia"><span class="tag ${c.status==='online'?'ok':c.status==='error'?'er':''}">${esc(c.status)}</span>
           <div class="sw" role="switch" aria-checked="${enabled}" data-tog="${c.id}" tabindex="0" title="Enable for agent"></div>
           <button class="btn q sm" data-rec="${c.id}" title="Reconnect">${I('refresh')}</button>
+          <button class="btn q sm" data-tok="${c.id}" title="${c.headers?.Authorization?'Replace':'Add'} token" style="${c.headers?.Authorization?'':'color:var(--warn)'}">${I('key')}</button>
           <button class="btn q sm" data-tools="${c.id}" title="Tools">${I('layers')}</button>
           <button class="btn q sm" data-del="${c.id}" title="Remove">${I('trash')}</button></div></div>`}).join('')
         ||`<div class="note">${I('plug')}<span>Nothing connected yet. Open the directory and tap an endpoint, or paste any MCP URL.</span></div>`;
+      pane.querySelectorAll('[data-tok]').forEach(b=>b.onclick=async()=>{const c=S.connectors.find(x=>x.id===b.dataset.tok);if(!c)return;
+        const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:c.headers?.Authorization?'Replace the saved token':'Paste the provider token'});
+        if(!t)return;
+        c.headers={...(c.headers||{}),Authorization:'Bearer '+t.trim().replace(/^Bearer\s+/i,'').replace(/^token\s+/i,'').replace(/^["\']+|["\']+$/g,'')};
+        c.viaWorker=true;c.nag=false;saveS();paintList();
+        const ok2=await connectURL(c,{silent:true});
+        toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Token saved but ${c.name} rejected it — does the account have access to this service?`,{type:ok2?'ok':'er',timeout:7000})});
       pane.querySelectorAll('[data-tog]').forEach(sw=>sw.onclick=()=>{const id=sw.dataset.tog,o=off(),c=S.connectors.find(x=>x.id===id);
         if(c.status!=='online'){connectURL(c).then(paintList);return}
         o.connectors=o.connectors.includes(id)?o.connectors.filter(x=>x!==id):[...o.connectors,id];saveS();paintFoot();paintList();renderPanel()});
