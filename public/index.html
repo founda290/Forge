@@ -653,6 +653,8 @@ html[data-theme=dark]{
 .qchip small{color:var(--tx3)}
 .qchip.out{opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease}
 @keyframes qblink{50%{opacity:.25}}
+.composer{position:relative}
+input::selection{background:color-mix(in srgb,var(--ac) 30%,transparent)}
 .msg{position:relative}
 .actpop{position:absolute;bottom:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh3);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:40;min-width:150px;animation:fade .14s ease}
 .actpop button{display:flex;gap:8px;align-items:center;padding:7px 10px;border-radius:8px;background:none;border:none;color:var(--tx);font:inherit;font-size:.8125rem;cursor:pointer;white-space:nowrap;text-align:left}
@@ -865,6 +867,7 @@ html[data-theme=dark]{
         <button role="tab" data-p="run" aria-selected="true"><svg class="i s"><use href="#i-activity"/></svg>Run</button>
         <button role="tab" data-p="tools" aria-selected="false"><svg class="i s"><use href="#i-plug"/></svg>Tools</button>
         <button role="tab" data-p="files" aria-selected="false"><svg class="i s"><use href="#i-file"/></svg>Files</button>
+        <button role="tab" data-p="web" aria-selected="false"><svg class="i s"><use href="#i-browser"/></svg>Web</button>
         <button role="tab" data-p="ctx" aria-selected="false"><svg class="i s"><use href="#i-book"/></svg>Context</button>
         <button role="tab" data-p="agents" aria-selected="false"><svg class="i s"><use href="#i-agent"/></svg>Agents</button>
       </div>
@@ -1296,6 +1299,136 @@ async function mcpRPC(c,method,params={},notify=false){
   }
   return res.json();
 }
+/* ══ PROVIDER SIGN-IN · MCP OAuth — one tap, nothing to paste ══ */
+const DEVICE_CID='Iv1.b507a08c87ecfe98';
+const b64u=b=>btoa(String.fromCharCode(...b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+async function pkcePair(){const v=b64u(crypto.getRandomValues(new Uint8Array(48)));const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));return{v,ch:b64u(new Uint8Array(h))}}
+async function tryGet(u){
+  try{const r=await fetch(u,{headers:{Accept:'application/json'}});if(r.ok)return await r.json()}catch{}
+  if(!workerOn())return null;
+  try{const r=await proxyFetch(u,{headers:{Accept:'application/json'}});if(r.ok)return await r.json()}catch{}
+  return null;
+}
+async function oauthDiscover(c){
+  let u=null;try{u=new URL(c.url)}catch{return null}
+  const path=u.pathname.replace(/\/+$/,'');
+  let doc=null;
+  for(const cand of [u.origin+'/.well-known/oauth-protected-resource'+path,u.origin+'/.well-known/oauth-protected-resource',u.origin+'/.well-known/oauth-authorization-server'+path,u.origin+'/.well-known/oauth-authorization-server']){
+    const d=await tryGet(cand);if(!d)continue;
+    if(d.authorization_endpoint)return{am:d,scp:d.scopes_supported||[]};
+    doc=d;break;
+  }
+  if(!doc||!Array.isArray(doc.authorization_servers))return null;
+  for(const srv of doc.authorization_servers){
+    try{
+      const su=new URL(srv),sp=su.pathname.replace(/\/+$/,'');
+      for(const cand of (sp?[su.origin+'/.well-known/oauth-authorization-server'+sp]:[]).concat([su.origin+'/.well-known/oauth-authorization-server'])){
+        const am=await tryGet(cand);if(am&&am.authorization_endpoint)return{am,scp:doc.scopes_supported||[]};
+      }
+    }catch{}
+  }
+  return null;
+}
+async function oauthPost(url,params){
+  const body=new URLSearchParams(params).toString();
+  const h={'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'};
+  let r=null;
+  try{r=await fetch(url,{method:'POST',headers:h,body})}catch{}
+  if(!r&&workerOn()){try{r=await proxyFetch(url,{method:'POST',headers:h,body})}catch{}}
+  if(!r)return{j:{error:'network'}};
+  const t=await r.text();let j={};try{j=JSON.parse(t)}catch{j={raw:t.slice(0,200)}}
+  return{status:r.status,j};
+}
+async function oauthRegister(url,doc){
+  let j=null;
+  try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(doc)});if(r.ok)j=await r.json()}catch{}
+  if(!j&&workerOn()){try{const r=await proxyFetch(url,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(doc)});if(r.ok)j=await r.json()}catch{}}
+  return j;
+}
+function deviceFlowModal(c,dr,tokEp){
+  return new Promise(res=>{
+    let done=false,closed=false,ints=(dr.interval||5)*1000;
+    const deadline=Date.now()+(dr.expires_in||900)*1000;
+    let host='provider';try{host=new URL(dr.verification_uri).hostname}catch{}
+    const m=modal({title:'Sign in to '+(c.name||'provider'),icon:'key',body:`
+      <p class="help">Open the link, enter this one-time code, and come right back — Forge completes the connection on its own. Nothing to paste.</p>
+      <div class="codeview"><pre style="font-size:1.3rem;letter-spacing:.35em;text-align:center">${esc(dr.user_code)}</pre></div>
+      <div class="line"><button class="btn p" id="ofOpen">${I('external')}Open ${esc(host)}</button><span class="sp"></span><span class="help" id="ofWait">Waiting for sign-in…</span></div>`,
+      foot:`<span>Forge receives only a scoped token — your password never reaches Forge.</span>`});
+    const w=m.el.querySelector('#ofWait');
+    m.el.querySelector('#ofOpen').onclick=()=>window.open(dr.verification_uri,'_blank');
+    m.onClose=()=>{closed=true;if(!done)res(null)};
+    const poll=async()=>{
+      if(closed||done)return;
+      try{
+        const rr=await oauthPost(tokEp,{grant_type:'urn:ietf:params:oauth:grant-type:device_code',device_code:dr.device_code,client_id:DEVICE_CID});
+        if(rr.j.access_token){done=true;m.close();res(rr.j);return}
+        if(rr.j.error==='slow_down')ints+=5000;
+        else if(rr.j.error&&rr.j.error!=='authorization_pending'){done=true;m.close();res(null);toast((c.name||'Provider')+': sign-in failed — '+String(rr.j.error_description||rr.j.error).slice(0,120),{type:'er',timeout:8000});return}
+      }catch{}
+      if(Date.now()>deadline){done=true;m.close();res(null);toast((c.name||'Provider')+': sign-in timed out — tap Sign in to try again.',{type:'wa',timeout:8000});return}
+      if(w)w.textContent='Waiting for sign-in… '+(Math.round((deadline-Date.now())/1000))+'s';
+      setTimeout(poll,ints);
+    };
+    setTimeout(poll,2000);
+  });
+}
+async function finishOAuth(c,code){
+  try{
+    const o=c.oauth;if(!o)return;
+    const rr=await oauthPost(o.token_endpoint,{grant_type:'authorization_code',code,client_id:o.client_id,redirect_uri:o.redirect,code_verifier:o.verifier});
+    if(rr.j.access_token){
+      c.headers={...(c.headers||{}),Authorization:'Bearer '+rr.j.access_token};
+      if(rr.j.refresh_token)c.refresh=rr.j.refresh_token;
+      c.oauth=null;c.viaWorker=true;c.nag=false;saveS();paintFoot();
+      toast(c.name+': signed in — connecting…',{type:'ok',timeout:4000});
+      await connectURL(c,{silent:true});
+    }else{c.oauth=null;saveS();toast(c.name+': provider rejected the sign-in — try Connect → sign in again.',{type:'er',timeout:8000})}
+  }catch(e){}
+}
+async function providerSignIn(c){
+  const paste=async()=>{
+    const t=await promptModal({title:c.name+' · access token',label:'Token from '+c.name+' (not the Forge gateway key) — sent as Authorization: Bearer …',placeholder:'Paste a token from '+c.name});
+    if(!t)return;
+    const v=t.trim().replace(/^Bearer\s+/i,'').replace(/^token\s+/i,'').replace(/^["\']+|["\']+$/g,'');
+    c.headers={...(c.headers||{}),Authorization:'Bearer '+v};c.viaWorker=true;c.nag=false;saveS();paintFoot();
+    const ok2=await connectURL(c,{silent:true});
+    toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Token saved but ${c.name} rejected it — does the account have access to this service?`,{type:ok2?'ok':'er',timeout:7000});
+  };
+  const meta=await oauthDiscover(c).catch(()=>null);
+  if(meta&&meta.am){
+    const{am,scp}=meta;
+    if(am.device_authorization_endpoint&&(am.grant_types_supported||[]).includes('urn:ietf:params:oauth:grant-type:device_code')){
+      const dres=await oauthPost(am.device_authorization_endpoint,{client_id:DEVICE_CID,scope:scp||'repo read:org gist workflow read:user'});
+      if(dres.j&&dres.j.device_code&&dres.j.user_code){
+        const tok=await deviceFlowModal(c,dres.j,am.token_endpoint);
+        if(tok&&tok.access_token){
+          c.headers={...(c.headers||{}),Authorization:'Bearer '+tok.access_token};
+          if(tok.refresh_token)c.refresh=tok.refresh_token;
+          c.oauth=null;c.viaWorker=true;c.nag=false;saveS();paintFoot();
+          const ok2=await connectURL(c,{silent:true});
+          toast(ok2?`${c.name}: signed in · ${c.tools?.length||0} tools live.`:`Signed in but ${c.name} still rejected the token.`,{type:ok2?'ok':'er',timeout:8000});return;
+        }
+        if(tok===null&&!c.headers?.Authorization)return;
+      }
+    }else if(am.registration_endpoint){
+      try{
+        const{v,ch}=await pkcePair();
+        const reg=await oauthRegister(am.registration_endpoint,{client_name:'Forge Studio',redirect_uris:[location.origin+'/oauth/callback'],grant_types:['authorization_code','refresh_token'],response_types:['code'],token_endpoint_auth_method:'none',scope:scp});
+        if(reg&&reg.client_id){
+          const st=uid();
+          c.oauth={client_id:reg.client_id,verifier:v,token_endpoint:am.token_endpoint,redirect:location.origin+'/oauth/callback',state:st};
+          saveS();
+          toast(c.name+': opening secure sign-in…',{type:'in',timeout:4000});
+          const q=new URLSearchParams({response_type:'code',client_id:reg.client_id,redirect_uri:location.origin+'/oauth/callback',state:st,code_challenge:ch,code_challenge_method:'S256'});
+          if(scp)q.set('scope',scp);
+          location.href=am.authorization_endpoint+'?'+q.toString();return;
+        }
+      }catch(e){}
+    }
+  }
+  await paste();
+}
 async function connectURL(c,{silent=false}={}){
   c.status='connecting';paintAgentbar();renderConsole();
   tput('mcp connect '+c.url,'cmd');
@@ -1309,6 +1442,7 @@ async function connectURL(c,{silent=false}={}){
     c.tools=(tl.result?.tools||[]).map(t=>({name:t.name,description:t.description||'',schema:t.inputSchema||{type:'object',properties:{}}}));
     try{const rl=await mcpRPC(c,'resources/list',{});c.resources=rl.result?.resources||[]}catch{c.resources=[]}
     c.status='online';c.error='';c.connectedAt=Date.now();c.autoEnabled=true;
+    try{const h1=new URL(c.url).hostname;if(c.headers?.Authorization)S.connectors.filter(x=>x.id!==c.id&&!x.headers?.Authorization&&new URL(x.url).hostname===h1).forEach(x=>{x.headers={...(x.headers||{}),Authorization:c.headers.Authorization};x.viaWorker=true});}catch{}
     const o=off();o.connectors=o.connectors.filter(x=>x!==c.id);
     tput(`${c.name} online · ${c.tools.length} tools auto-enabled`,'ok');
     if(!silent)toast(`${c.name}: ${c.tools.length} tools auto-enabled for this project.`,{type:'ok',timeout:5200});
@@ -1321,16 +1455,9 @@ async function connectURL(c,{silent=false}={}){
     if(!silent){
       if(authErr&&!hasTok&&!c.nag){
         c.nag=true;
-        toast(`${c.name} needs your provider token — Forge forgets nothing once it's saved.`,{type:'wa',timeout:9000,action:{label:'Add token',fn:async()=>{
-          const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:'Paste the provider token or personal access token'});
-          if(!t)return;
-          const v=t.trim().replace(/^Bearer\s+/i,'').replace(/^token\s+/i,'').replace(/^["\']+|["\']+$/g,'');
-          c.headers={...(c.headers||{}),Authorization:'Bearer '+v};c.viaWorker=true;c.nag=false;saveS();paintFoot();
-          const ok2=await connectURL(c,{silent:true});
-          toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Token saved but ${c.name} rejected it — does the account have access to this service?`,{type:ok2?'ok':'er',timeout:7000});
-        }}});
+        toast(`${c.name}: one tap to connect — provider sign-in opens in your browser, nothing to paste.`,{type:'in',timeout:9000,action:{label:'Sign in',fn:()=>providerSignIn(c)}});
       }
-      else if(authErr&&hasTok)toast(`${c.name}: saved token was rejected — reconnect or replace it in Connectors.`,{type:'er',timeout:7000,action:{label:'Replace token',fn:async()=>{c.nag=false;toast('Cut a fresh token from the provider, then paste it.',{type:'in',timeout:4000})}}});
+      else if(authErr&&hasTok)toast(`${c.name}: the saved token was rejected — connecting with sign-in instead. (A Forge gateway key will not work for a provider.)`,{type:'er',timeout:9000,action:{label:'Sign in',fn:()=>providerSignIn(c)}});
       else toast(`${c.name}: ${c.error}`,{type:'er',timeout:7000,action:{label:'Retry',fn:async()=>{await connectURL(c)}}});
     }
   }
@@ -1589,7 +1716,10 @@ function msgNode(m,c){
 }
 function renderThread(){const c=chat();thread.innerHTML='';if(!c)return;
   const f=document.createDocumentFragment();c.messages.forEach(m=>f.appendChild(msgNode(m,c)));
-  thread.appendChild(f);hl(thread);requestAnimationFrame(()=>toEnd(true))}
+  thread.appendChild(f);hl(thread);
+  const tr=TASK_CACHE.find(x=>x.id===c.taskId);
+  if(tr)thread.prepend(runCardEl(tr));
+  requestAnimationFrame(()=>toEnd(true))}
 function repaint(m,c){const el=nodeOf(m.id);if(!el)return;const n=msgNode(m,c);el.replaceWith(n);hl(n)}
 function layout(){
   const c=chat();
@@ -1706,6 +1836,25 @@ input.addEventListener('input',()=>{grow();paintSend();const c=chat();if(c){c.dr
 input.addEventListener('focus',()=>composer.classList.add('focus'));
 input.addEventListener('blur',()=>composer.classList.remove('focus'));
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&(PF.enterSend!==false||e.ctrlKey||e.metaKey)){e.preventDefault();send()}});
+let mpEl=null;
+function mentionCheck(){
+  const pos=input.selectionStart||0;
+  const before=input.value.slice(0,pos);
+  const m=before.match(/(^|\s)@([\w.-]*)$/);
+  mpEl?.remove();mpEl=null;
+  if(!m)return;
+  const q=m[2].toLowerCase();
+  const fl=projectFiles().filter(f=>f.name.toLowerCase().includes(q)).slice(0,8);
+  if(!fl.length)return;
+  mpEl=document.createElement('div');mpEl.className='actpop mention';
+  mpEl.style.cssText='left:12px;right:auto;bottom:calc(100% + 6px);min-width:230px;';
+  mpEl.innerHTML=fl.map(f=>`<button data-mf="${esc(f.id)}">${I('file','i s')}${esc(f.name)}</button>`).join('');
+  composer.appendChild(mpEl);
+  mpEl.querySelectorAll('[data-mf]').forEach(b=>b.onclick=()=>{const f=projectFiles().find(x=>x.id===b.dataset.mf);if(!f)return;
+    input.value=input.value.replace(/(^|\s)@[\w.-]*$/,'$1@'+f.name+' ');
+    grow();paintSend();mpEl?.remove();mpEl=null;input.focus()});
+}
+input.addEventListener('input',mentionCheck);
 thread.addEventListener('click',async e=>{
   const zoom=e.target.closest('[data-zoom]');if(zoom){lightbox(zoom.src);return}
   const tc=e.target.closest('[data-tc]');if(tc){tc.nextElementSibling.hidden=!tc.nextElementSibling.hidden;return}
@@ -1845,6 +1994,18 @@ function openMoreSheet(){
 }
 function setStep(s){curStep=s;paintAgentbar();pubTaskStatus(s)}
 const Q_STATE={};
+function runCardEl(t){
+  const d=document.createElement('div');d.id='runCard';d.className='toolcard';
+  const st=t.status||'running';const cls=st==='completed'?'ok':st==='failed'?'er':'wa';
+  const n=(t.steps||[]).length;
+  d.innerHTML=`<div class="tc-head" data-tc>${I(kindOf(t.kind).ic)}<b>${esc(t.title||t.prompt||'Task run')}</b><span class="sp"></span>
+    <span class="tag ${cls}">${esc(st)}</span>${n?`<span class="tag">${n} step${n===1?'':'s'}</span>`:''}${I('chev')}</div>
+    <div class="tc-body" hidden><p class="help">${TASK.id===t.id?'Running on this device — steps stream in the console below.':'Watch this task from any device — the detail view auto-refreshes while it runs.'}</p>
+    <button class="btn p sm" id="rcOpen">${I('activity')}Open task detail</button></div>`;
+  const ob=d.querySelector('#rcOpen');
+  if(ob)ob.onclick=e=>{e.stopPropagation();openTaskDetail(t.id)};
+  return d;
+}
 function renderQueue(){
   const bar=$('#queueBar');if(!bar)return;
   TASK_CACHE.forEach(t=>{
@@ -1876,6 +2037,8 @@ function paintAgentbar(){
   $('#abShield').title=PF.autoApprove?'Auto-approve ON — tools run without asking':'Auto-approve OFF — you confirm each tool';
   $('#abChev').innerHTML=`<use href="#i-${PF.consoleOpen?'chev':'up'}"/>`;
   $('#abToggle').setAttribute('aria-expanded',String(PF.consoleOpen));
+  const rc=document.getElementById('runCard');
+  if(rc){const rt=TASK_CACHE.find(x=>x.id===chat()?.taskId);if(rt)rc.replaceWith(runCardEl(rt));else rc.remove()}
   renderQueue();
 }
 function toggleConsole(force){
@@ -2345,6 +2508,30 @@ function renderPanel(){
       toast('Bundle exported.',{type:'ok'})};
     paintW('');
   }
+  else if(tab==='web'){
+    body.innerHTML=`<div class="line" style="flex-wrap:nowrap"><input type="text" id="wUrl" placeholder="https://example.com" spellcheck="false"/><button class="btn p" id="wGo">${I('play')}Go</button></div>
+      <div class="line"><button class="btn sm" id="wRead">${I('book')}Readable text</button><button class="btn sm" id="wExt">${I('ext')}Open tab</button><button class="btn sm" id="wCtx" disabled>${I('agent')}Send to Forge</button></div>
+      <div id="wView" style="flex:1;min-height:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--surface2)"><p class="help" style="padding:10px">Enter a URL to browse it here, or read it as text.</p></div>`;
+    const view=body.querySelector('#wView'),wInp=body.querySelector('#wUrl');let lastText='';
+    const openP=u=>{let U=String(u||'').trim();if(!U)return;if(!/^https?:\/\//i.test(U))U='https://'+U;
+      wInp.value=U;
+      view.innerHTML=`<iframe src="${esc(U)}" style="width:100%;height:100%;min-height:52dvh;border:0" sandbox="allow-scripts allow-forms allow-popups" referrerpolicy="no-referrer" loading="eager"></iframe>`;
+      tput('browse '+U,'cmd')};
+    body.querySelector('#wGo').onclick=()=>openP(wInp.value);
+    wInp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();openP(wInp.value)}};
+    body.querySelector('#wExt').onclick=()=>{if(wInp.value)window.open(wInp.value,'_blank','noopener')};
+    body.querySelector('#wRead').onclick=async()=>{let U=wInp.value.trim();if(!U)return;if(!/^https?:\/\//i.test(U))U='https://'+U;
+      view.innerHTML='<p class="help" style="padding:10px">Fetching readable text…</p>';
+      try{const r=await proxyFetch(U);const txt=(await r.text()).slice(0,40000);lastText=txt;
+        view.innerHTML=`<pre style="padding:10px;white-space:pre-wrap;font-family:var(--mono);font-size:.75rem;overflow:auto;max-height:60dvh;width:100%">${esc(txt)}</pre>`;
+        body.querySelector('#wCtx').disabled=false;tput('readable: '+U+' ('+bytes(txt.length)+')','ok')}
+      catch(e){view.innerHTML='<p class="help" style="padding:10px">Could not read this page — try Go to preview, or Open tab.</p>'}};
+    body.querySelector('#wCtx').onclick=()=>{if(!lastText)return;
+      const host=(()=>{try{return new URL(wInp.value).hostname.replace(/\W+/g,'-')}catch{return 'page'}})();
+      const n='page-'+host+'-'+Date.now().toString(36)+'.md';
+      S.files.push({id:uid(),projectId:S.activeProject,name:n,type:'text/plain',content:lastText,size:lastText.length,createdAt:Date.now()});
+      saveS();renderConsole();renderPanel();toast('Page saved to project files — Forge reads it with read_file.',{type:'ok'})};
+  }
   else if(tab==='ctx'){
     const fl=projectFiles();
     body.innerHTML=`<div class="card"><b>${I('book')}Project knowledge</b>
@@ -2386,7 +2573,7 @@ function openConnectors(cat='all',focusId=null){
   const m=modal({title:'Connectors',icon:'plug',size:'full',flush:true,tag:'<span class="beta">URL only</span>',
     tabs:[{id:'dir',n:'Endpoint directory',i:'layers'},{id:'mine',n:'Connected',i:'check'}],
     body:`<div class="split"><div class="split-l" id="dCats"></div><div class="split-r" id="dPane"></div></div>`,
-    foot:`<span>No tokens. Paste a URL — Forge speaks MCP directly.</span><span class="sp"></span>
+    foot:`<span>One tap to connect — provider sign-in opens when needed, nothing to paste.</span><span class="sp"></span>
       <button class="btn sm" id="dWorker">${I('worker')}Worker proxy</button><button class="btn p sm" id="dDone">${I('check')}Done</button>`});
   const cats=m.el.querySelector('#dCats'),pane=m.el.querySelector('#dPane');
   let tab=focusId?'mine':'dir';
@@ -2405,7 +2592,7 @@ function openConnectors(cat='all',focusId=null){
       <div class="card" style="background:var(--surface)">
         <b>${I('link')}Connect any MCP URL</b>
         <div class="line" style="flex-wrap:nowrap"><input type="text" id="dUrl" placeholder="https://your-server.com/mcp" spellcheck="false"/><button class="btn p" id="dGo">${I('plug')}Connect</button></div>
-        <p class="help">Streamable HTTP or SSE. Forge runs <code>initialize</code> → <code>tools/list</code>, then auto-enables every tool for this project.</p>
+        <p class="help">Streamable HTTP or SSE. Auto-runs connect + tool discovery, then auto-enables every tool for this project; when a provider needs sign-in, Forge opens it for you.</p>
         <div id="dNote"></div>
       </div>
       <div class="pgrid" id="dGrid"></div>`;
@@ -2416,7 +2603,7 @@ function openConnectors(cat='all',focusId=null){
       return `<button class="pcard${already||live?' on':''}" data-d="${DIRECTORY.indexOf(d)}">
         <div class="pt">${I(d.i)}<b>${esc(d.n)}</b>${already?I('check'):''}</div>
         <small>${esc(d.d)}</small><div class="urline">${esc(d.all?d.all.length+' bundled servers':(d.u||'paste your own URL'))}</div>
-        <div class="ptags"><span class="tag ${d.auth==='public'?'ok':d.auth==='mixed'?'ac':'wa'}">${d.auth==='public'?'no sign-in':d.auth==='mixed'?'mixed sign-in':'provider sign-in'}</span>${already?`<span class="tag ac">${already.tools.length} tools</span>`:live?`<span class="tag ac">${live} live</span>`:''}</div></button>`}).join('')
+        <div class="ptags"><span class="tag ${d.auth==='public'?'ok':d.auth==='mixed'?'ac':'wa'}">${d.auth==='public'?'no sign-in':d.auth==='mixed'?'mixed sign-in':'one-tap sign-in'}</span>${already?`<span class="tag ac">${already.tools.length} tools</span>`:live?`<span class="tag ac">${live} live</span>`:''}</div></button>`}).join('')
       ||'<p class="help">No endpoint matches.</p>';
     grid.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{
       const d=DIRECTORY[+b.dataset.d];
@@ -2455,17 +2642,12 @@ function openConnectors(cat='all',focusId=null){
         <div class="ia"><span class="tag ${c.status==='online'?'ok':c.status==='error'?'er':''}">${esc(c.status)}</span>
           <div class="sw" role="switch" aria-checked="${enabled}" data-tog="${c.id}" tabindex="0" title="Enable for agent"></div>
           <button class="btn q sm" data-rec="${c.id}" title="Reconnect">${I('refresh')}</button>
-          <button class="btn q sm" data-tok="${c.id}" title="${c.headers?.Authorization?'Replace':'Add'} token" style="${c.headers?.Authorization?'':'color:var(--warn)'}">${I('key')}</button>
+          <button class="btn q sm" data-tok="${c.id}" title="${c.headers?.Authorization?'Sign in / replace token':'Sign in — nothing to paste'}"${c.headers?.Authorization?'':' style="color:var(--warn)"'}>${I('key')}</button>
           <button class="btn q sm" data-tools="${c.id}" title="Tools">${I('layers')}</button>
           <button class="btn q sm" data-del="${c.id}" title="Remove">${I('trash')}</button></div></div>`}).join('')
         ||`<div class="note">${I('plug')}<span>Nothing connected yet. Open the directory and tap an endpoint, or paste any MCP URL.</span></div>`;
       pane.querySelectorAll('[data-tok]').forEach(b=>b.onclick=async()=>{const c=S.connectors.find(x=>x.id===b.dataset.tok);if(!c)return;
-        const t=await promptModal({title:c.name+' · access token',label:'Access token (sent as Authorization: Bearer …)',placeholder:c.headers?.Authorization?'Replace the saved token':'Paste the provider token'});
-        if(!t)return;
-        c.headers={...(c.headers||{}),Authorization:'Bearer '+t.trim().replace(/^Bearer\s+/i,'').replace(/^token\s+/i,'').replace(/^["\']+|["\']+$/g,'')};
-        c.viaWorker=true;c.nag=false;saveS();paintList();
-        const ok2=await connectURL(c,{silent:true});
-        toast(ok2?`${c.name}: connected · ${c.tools?.length||0} tools live.`:`Token saved but ${c.name} rejected it — does the account have access to this service?`,{type:ok2?'ok':'er',timeout:7000})});
+        await providerSignIn(c);paintList()});
       pane.querySelectorAll('[data-tog]').forEach(sw=>sw.onclick=()=>{const id=sw.dataset.tog,o=off(),c=S.connectors.find(x=>x.id===id);
         if(c.status!=='online'){connectURL(c).then(paintList);return}
         o.connectors=o.connectors.includes(id)?o.connectors.filter(x=>x!==id):[...o.connectors,id];saveS();paintFoot();paintList();renderPanel()});
@@ -2475,7 +2657,9 @@ function openConnectors(cat='all',focusId=null){
         S.connectors=S.connectors.filter(x=>x.id!==b.dataset.del);saveS();paintFoot();paintList();renderPanel()});
       pane.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{
         const c=S.connectors.find(x=>x.id===b.dataset.save);
-        try{c.headers=JSON.parse(pane.querySelector(`[data-h="${c.id}"]`).value||'{}')}catch{toast('Headers must be valid JSON.',{type:'er'});return}
+        let pj=null;try{pj=JSON.parse(pane.querySelector(`[data-h="${c.id}"]`).value||'{}')}catch{toast('Headers must be valid JSON.',{type:'er'});return}
+        const keep=(!String(pj.Authorization||'').trim()&&c.headers?.Authorization)?{Authorization:c.headers.Authorization}:{};
+        c.headers={...(c.headers||{}),...pj,...keep};
         c.viaWorker=pane.querySelector(`[data-w="${c.id}"]`).checked;saveS();await connectURL(c);paintList()});
       pane.querySelectorAll('[data-tools]').forEach(b=>b.onclick=()=>{
         const c=S.connectors.find(x=>x.id===b.dataset.tools);
@@ -2508,7 +2692,7 @@ function openConnectors(cat='all',focusId=null){
     if(note)note.innerHTML=`<div class="note in">${I('refresh')}<span>Handshaking with ${esc(url)}…</span></div>`;
     toggleConsole(true);PF.consoleTab='term';savePF();
     const ok=await connectURL(c,{silent});
-    if(note)note.innerHTML=`<div class="note ${ok?'ok':'er'}">${I(ok?'check':'alert')}<span>${ok?`${c.tools.length} tools online and auto-enabled for ${esc(proj().name)}.`:'Handshake with '+esc(c.name||'')+': '+esc(c.error||'')+' — reconnect usually clears this.'}</span></div>`;
+    if(note)note.innerHTML=`<div class="note ${ok?'ok':'er'}">${I(ok?'check':'alert')}<span>${ok?`${c.tools.length} tools online and auto-enabled for ${esc(proj().name)}.`:'Handshake with '+esc(c.name||'')+': '+esc(c.error||'')+' — tap the connector’s key button to sign in once.'}</span></div>`;
     paintFoot();paintHero();
     if(ok){tab='mine';conFocus=c.id;m.el.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab==='mine')));paintPane()}
     return ok;
@@ -3537,6 +3721,10 @@ $('#cAll').setAttribute('aria-pressed',String(PF.allProjects));
 if(S.activeChat){const c=chat();if(c){input.value=c.draft||'';grow();paintSend()}}
 setStep('Idle · '+toolSpecs().length+' tools armed');
 listModels(S.activeProvider).then(l=>{if(!S.activeModel&&l.length){S.activeModel=l[0].id;saveS();paintChip();paintState();paintFoot();paintHero()}}).catch(()=>{});
+try{const oq=JSON.parse(localStorage.getItem('forgeOauth')||'null');if(oq){localStorage.removeItem('forgeOauth');
+  const oc=(S.connectors||[]).find(x=>x.oauth&&x.oauth.state===oq.state);
+  if(oc&&oq.code)finishOAuth(oc,oq.code);
+  else if(oc&&oq.error)toast(oc.name+': provider sign-in was cancelled.',{type:'wa',timeout:6000});}}catch{}
 S.connectors.filter(c=>c.status==='online').forEach(c=>connectURL(c,{silent:true}));
 if(!Object.keys(S.keys).some(k=>!k.startsWith('__'))&&!provById(S.activeProvider)?.nokey)
   setTimeout(()=>toast('Add a gateway key to start writing. Connectors need only a URL.',{type:'in',timeout:7500,action:{label:'Open gateways',fn:()=>openProviders()}}),700);
