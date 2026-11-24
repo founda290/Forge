@@ -3268,11 +3268,18 @@ async function openHomeView(){
     </div>
     <div><div class="hv-sec">Your workspace · Recent tasks</div><div class="stats" id="hvStats" style="margin-top:12px"></div><div class="hv-grid" id="hvGrid" style="margin-top:12px"><p class="help">Loading…</p></div></div>
     <div><div class="hv-sec">Recent files</div><div class="hv-chips" id="hvFiles" style="margin-top:12px"></div></div>
-    <div><div class="hv-sec">Quick links</div><div class="hv-chips" style="margin-top:12px">
+    <div><div class="hv-sec">Everything in one place</div><div class="hv-chips" style="margin-top:12px">
+      <button class="chip" data-hnav="chats">${I('msg')}<span>Chats</span></button>
+      <button class="chip" data-hnav="tasks">${I('activity')}<span>Tasks</span></button>
       <button class="chip" data-hnav="projects">${I('folder')}<span>Projects</span></button>
-      <button class="chip" data-hnav="skills">${I('skill')}<span>Skills</span></button>
       <button class="chip" data-hnav="knowledge">${I('book')}<span>Knowledge</span></button>
-      <button class="chip" data-hnav="providers">${I('key')}<span>Model &amp; gateway</span></button>
+      <button class="chip" data-hnav="connectors">${I('plug')}<span>Connectors</span></button>
+      <button class="chip" data-hnav="providers">${I('key')}<span>Gateways</span></button>
+      <button class="chip" data-hnav="agents">${I('agent')}<span>Agents</span></button>
+      <button class="chip" data-hnav="skills">${I('skill')}<span>Skills</span></button>
+      <button class="chip" data-hnav="worker">${I('worker')}<span>Automations</span></button>
+      <button class="chip" data-hnav="visuals">${I('palette')}<span>Visuals</span></button>
+      <button class="chip" data-hnav="console">${I('term')}<span>Console</span></button>
       <button class="chip" data-hnav="settings">${I('gear')}<span>Settings</span></button>
     </div></div>
   </div>`;
