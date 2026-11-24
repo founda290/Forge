@@ -582,33 +582,8 @@ html[data-theme=dark]{
   .bar{background:color-mix(in srgb,var(--surface) 90%,transparent)}
   .greet h1{font-size:1.45rem}
 }
-.homeview{position:fixed;inset:0;z-index:700;background:var(--bg);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;animation:hvIn .18s var(--ease)}
-@keyframes hvIn{from{opacity:0}to{opacity:1}}
-.hv-top{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:3}
-.hv-top .logo{width:30px;height:30px;border-radius:9px;background:var(--ac-bg);color:var(--ac);display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--ac-line)}
-.hv-top .logo svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
-.hv-scroll{width:100%;max-width:820px;margin:0 auto;padding:46px 20px 90px;display:flex;flex-direction:column;gap:34px}
-.hv-hero{text-align:center}
-.hv-hero h1{font-size:clamp(1.45rem,4.5vw,2.05rem);letter-spacing:-.02em;color:var(--tx);line-height:1.25}
-.hv-hero h1 em{font-style:normal;color:var(--ac)}
-.hv-hero p{color:var(--tx2);font-size:.875rem;margin-top:8px}
-.hv-composer{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r4);padding:14px;box-shadow:var(--sh2)}
-.hv-composer:focus-within{border-color:var(--ac-line)}
-.hv-composer textarea{width:100%;min-height:86px;max-height:220px;resize:none;border:0;outline:0;background:transparent;color:var(--tx);font:inherit;font-size:.9375rem;line-height:1.55}
-.hv-composer textarea::placeholder{color:var(--tx3)}
-.hv-chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}
-.hv-foot{display:flex;align-items:center;gap:10px}
-.hv-kinds{display:inline-flex;align-items:center;gap:6px;color:var(--tx3);font-size:.6875rem;text-transform:uppercase;letter-spacing:.08em}
 .hv-sec{display:flex;align-items:center;gap:10px;color:var(--tx3);font-size:.6875rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
 .hv-sec::after{content:'';flex:1;height:1px;background:var(--line)}
-.hv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:10px}
-.tk{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:var(--r3);background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color var(--t),box-shadow var(--t)}
-.tk:hover{border-color:var(--ac-line);box-shadow:var(--sh1)}
-.tk-ic{width:32px;height:32px;border-radius:10px;background:var(--ac-bg);color:var(--ac);display:inline-flex;align-items:center;justify-content:center;flex:none}
-.tk-b{min-width:0;display:flex;flex-direction:column;gap:4px}
-.tk-b b{font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tk-b small{color:var(--tx2);font-size:.6875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media(max-width:640px){.hv-scroll{padding:28px 14px 70px}.hv-grid{grid-template-columns:1fr 1fr}}
 .sbt-wrap{flex:none;max-height:190px;overflow-y:auto;border-bottom:1px solid var(--line);padding:2px 8px 8px;background:var(--surface2)}
 .sbt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:.75rem;color:var(--tx2)}
 .sbt:hover{background:var(--surface3);color:var(--tx)}
@@ -2000,7 +1975,7 @@ function phaseOf(s){
   return['zap',s];
 }
 function openMoreSheet(){
-  const items=[['home','Home','Give Forge a task','home'],['tasks','Tasks','Live & past runs','activity'],['chats','Chats','Conversations','msg'],['projects','Projects','Persistent workspaces','folder'],['knowledge','Knowledge','Files, snippets, memory','book'],['connectors','Connectors','MCP & endpoints','plug'],['agents','Agents','Persona & subagents','agent'],['skills','Skills','Reusable abilities','skill'],['providers','Models','Gateways & keys','key'],['visuals','Visual studio','Moodboard & sketchpad','palette'],['console','Console','Steps, files, terminal','term'],['worker','Gateway','Worker, jobs, automations','worker'],['settings','Settings','Theme, permissions, sync','gear']];
+  const items=[['home','New task','Straight into chat','plus'],['tasks','Tasks','Live & past runs','activity'],['chats','Chats','Conversations','msg'],['projects','Projects','Persistent workspaces','folder'],['knowledge','Knowledge','Files, snippets, memory','book'],['connectors','Connectors','MCP & endpoints','plug'],['agents','Agents','Persona & subagents','agent'],['skills','Skills','Reusable abilities','skill'],['providers','Models','Gateways & keys','key'],['visuals','Visual studio','Moodboard & sketchpad','palette'],['console','Console','Steps, files, terminal','term'],['worker','Gateway','Worker, jobs, automations','worker'],['settings','Settings','Theme, permissions, sync','gear']];
   const m=modal({title:'Workspace',icon:'layers',size:'md',body:`<div class="moregrid">${items.map(([v,n,d,ic])=>`<button class="mgl" data-go="${v}">${I(ic,'i l')}<span class="mgl-t"><b>${esc(n)}</b><small>${esc(d)}</small></span></button>`).join('')}</div>`,foot:`<span></span><span class="sp"></span><button class="btn" data-cl>Close</button>`});
   m.el.querySelector('[data-cl]').onclick=()=>m.close();
   m.body.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{m.close();navTo(b.dataset.go)});
@@ -3337,7 +3312,7 @@ function setWork(w){PF.workMode=w;savePF();$('#workSeg [data-work]').forEach(b=>
 $('#workSeg').addEventListener('click',e=>{const b=e.target.closest('[data-work]');if(b)setWork(b.dataset.work)});
 function navTo(v){
   $$('.rbtn').forEach(b=>b.classList.toggle('on',b.dataset.nav===v));
-  if(v==='home'){openHomeView();return}
+  if(v==='home'||v==='new'){$('#btnNew').click();return}
   if(v==='tasks'){openTasks();return}
   if(v==='chats'){openSidebar();return}
   if(v==='console'){toggleConsole();return}
@@ -3359,7 +3334,6 @@ document.addEventListener('keydown',e=>{
     if(pmEl){closePlus();return}
     if(openSel){openSel.remove();openSel=null;return}
     if(modalStack.length)return;
-    if(homeEl){closeHome();return}
     if($('#sidebar').classList.contains('on')){closeSidebar();return}
     if(mqTablet.matches&&root.dataset.panel==='open'){closePanel();return}
     if(live){live.stopped=true;try{live.ac.abort()}catch{}}
@@ -3380,7 +3354,7 @@ window.addEventListener('error',e=>{console.error('[forge]',e.error||e.message);
 window.addEventListener('unhandledrejection',e=>{if(e.reason?.name!=='AbortError')console.error('[forge] async',e.reason)});
 
 /* ══ TASK ENGINE · priority: ask → plan → execute → deliver ══ */
-let TASK_DIRECTIVE='',taskPulse=0,TASK_CACHE=[],homeEl=null;
+let TASK_DIRECTIVE='',taskPulse=0,TASK_CACHE=[];
 const TASK={id:null,kind:'research',chatId:''};
 const TASK_KINDS=[
   {id:'research',n:'Research',ic:'search',hint:'Deep-dive a topic, compile sources into a brief',sys:'Research task: gather information with web_fetch and http_request, cross-check sources, and produce a structured findings report with links. Verify claims before stating them.'},
@@ -3438,96 +3412,12 @@ function paintTasksBadge(){
   const n=TASK_CACHE.filter(t=>t.status==='running').length;
   b.hidden=!n;b.textContent=n>9?'9+':String(n);
 }
-function taskCard(t){
-  const k=kindOf(t.kind),st=t.status||'running';
-  const cls=st==='completed'?'ok':st==='failed'?'er':st==='running'?'wa':'';
-  const meta=[];
-  const nS=(t.steps||[]).length;if(nS)meta.push(nS+' step'+(nS>1?'s':''));
-  if(t.result?.toolCalls)meta.push(t.result.toolCalls+' tools');
-  meta.push(hhmm(new Date(t.updated_at||Date.now()).getTime()));
-  return `<button class="tk" data-task="${t.id}"><span class="tk-ic">${I(k.ic)}</span><span class="tk-b"><b>${esc(t.title||t.prompt)}</b><small><span class="tag ${cls}">${esc(st)}</span>${meta.length?' · '+esc(meta.join(' · ')):''}</small></span></button>`;
-}
-function renderHomeTasks(){
-  const g=$('#hvGrid');if(!g)return;
-  g.innerHTML=TASK_CACHE.length?TASK_CACHE.slice(0,8).map(taskCard).join(''):'<p class="help">No tasks yet — describe one above and Forge runs it end to end.</p>';
-  g.querySelectorAll('[data-task]').forEach(b=>b.onclick=()=>openTaskDetail(b.dataset.task));
-  const st=$('#hvStats');
-  if(st)st.innerHTML=`<div class="stat"><b>${S.chats.length}</b><span>chats</span></div><div class="stat"><b>${projectFiles().length}</b><span>files</span></div>
-    <div class="stat"><b>${liveConnectors().length}</b><span>connectors online</span></div><div class="stat"><b>${toolSpecs().length}</b><span>tools live</span></div>`;
-  const hf=$('#hvFiles');
-  if(hf){const rf=projectFiles().slice(-6).reverse();
-    hf.innerHTML=rf.length?rf.map(f=>`<button class="chip" data-hf="${esc(f.id)}">${I('file')}<span>${esc(f.name)}</span></button>`).join(''):'<p class="help">No files yet — tasks create them.</p>';
-    hf.querySelectorAll('[data-hf]').forEach(b=>b.onclick=()=>{closeHome();navTo('knowledge')})}
-}
-async function openHomeView(){
-  if(homeEl)return;
-  homeEl=document.createElement('div');
-  homeEl.className='homeview';
-  homeEl.innerHTML=`<div class="hv-top">
-    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 19V5h9M8 12h6.5"/></svg></span>
-    <b style="font-size:.9375rem">Forge</b><span style="color:var(--tx3);font-size:.8125rem">Studio</span>
-    <span style="flex:1"></span>
-    <button class="btn q sm" data-hnav="worker">${I('worker')}<span>Automations</span></button>
-    <button class="btn q sm" data-hnav="connectors">${I('plug')}<span>Connectors</span></button>
-    <button class="btn q ic" id="hvClose" aria-label="Close home">${I('x')}</button>
-  </div>
-  <div class="hv-scroll">
-    <div class="hv-hero"><h1>What would <em>you</em> like to accomplish?</h1><p>Give Forge a task. It plans, executes and delivers the result.</p></div>
-    <div class="hv-composer">
-      <textarea id="taskIn" placeholder="Describe a task, build something, research a topic…" aria-label="Task description"></textarea>
-      <div class="hv-chips">${TASK_KINDS.map((k,i)=>`<button class="chip" data-kind="${k.id}" aria-pressed="${i===0}" title="${esc(k.hint)}">${I(k.ic)}<span>${k.n}</span></button>`).join('')}</div>
-      <div class="hv-chips" style="margin-top:8px">${TRY_TASKS.map(s=>`<button class="chip" data-try="${esc(s)}">${I('spark','i s')}<span>${esc(s)}</span></button>`).join('')}</div>
-      <div class="hv-foot"><span class="hv-kinds">${I('agent','i s')} Agent mode</span><span style="flex:1"></span><button class="btn p" id="taskGo">${I('send','i s')} Start task</button></div>
-    </div>
-    <div><div class="hv-sec">Your workspace · Recent tasks</div><div class="stats" id="hvStats" style="margin-top:12px"></div><div class="hv-grid" id="hvGrid" style="margin-top:12px"><p class="help">Loading…</p></div></div>
-    <div><div class="hv-sec">Recent files</div><div class="hv-chips" id="hvFiles" style="margin-top:12px"></div></div>
-    <div><div class="hv-sec">Everything in one place</div><div class="hv-chips" style="margin-top:12px">
-      <button class="chip" data-hnav="chats">${I('msg')}<span>Chats</span></button>
-      <button class="chip" data-hnav="tasks">${I('activity')}<span>Tasks</span></button>
-      <button class="chip" data-hnav="projects">${I('folder')}<span>Projects</span></button>
-      <button class="chip" data-hnav="knowledge">${I('book')}<span>Knowledge</span></button>
-      <button class="chip" data-hnav="connectors">${I('plug')}<span>Connectors</span></button>
-      <button class="chip" data-hnav="providers">${I('key')}<span>Gateways</span></button>
-      <button class="chip" data-hnav="agents">${I('agent')}<span>Agents</span></button>
-      <button class="chip" data-hnav="skills">${I('skill')}<span>Skills</span></button>
-      <button class="chip" data-hnav="worker">${I('worker')}<span>Automations</span></button>
-      <button class="chip" data-hnav="visuals">${I('palette')}<span>Visuals</span></button>
-      <button class="chip" data-hnav="console">${I('term')}<span>Console</span></button>
-      <button class="chip" data-hnav="settings">${I('gear')}<span>Settings</span></button>
-    </div></div>
-  </div>`;
-  document.body.appendChild(homeEl);
-  let kind=TASK_KINDS[0].id;
-  homeEl.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;homeEl.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))});
-  homeEl.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>{ta.value=b.dataset.try;ta.dispatchEvent(new Event('input'));ta.focus()});
-  const ta=homeEl.querySelector('#taskIn');
-  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,220)+'px'});
-  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();startTask(ta.value,kind)}});
-  homeEl.querySelector('#taskGo').onclick=()=>startTask(ta.value,kind);
-  homeEl.querySelector('#hvClose').onclick=closeHome;
-  homeEl.querySelectorAll('[data-hnav]').forEach(b=>b.onclick=()=>{closeHome();navTo(b.dataset.hnav)});
-  setTimeout(()=>ta.focus(),60);
-  try{const seed=JSON.parse(sessionStorage.getItem('fs.seedTask')||'null');
-    if(seed){sessionStorage.removeItem('fs.seedTask');
-      if(seed.prompt){ta.value=seed.prompt;ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,220)+'px'}
-      if(seed.kind){kind=seed.kind;homeEl.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.kind===seed.kind)))}
-      ta.focus();toast('Task is staged — press Start task to launch Forge.',{type:'in',timeout:4200});
-    }
-  }catch{}
-  await taskList();renderHomeTasks();
-}
-function closeHome(){
-  if(!homeEl)return;
-  homeEl.remove();homeEl=null;
-  $$('.rbtn').forEach(b=>b.classList.toggle('on',b.dataset.nav==='chats'));
-}
 function setWorkAgent(){PF.workMode='agent';savePF();$$('#workSeg [data-work]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.work==='agent')))}
 async function startTask(prompt,kindId){
   const k=kindOf(kindId);prompt=(prompt||'').trim();
-  if(!prompt){toast('Describe the task first.',{type:'in'});homeEl?.querySelector('#taskIn')?.focus();return}
+  if(!prompt){toast('Describe the task first.',{type:'in'});input.focus();return}
   if(!cloudTok())return toast('Sign in required.',{type:'er'});
   if(live)return toast('Forge is already working — stop it first, or wait for it to finish.',{type:'in'});
-  closeHome();
   try{
     const d=await taskFetch('',{method:'POST',body:JSON.stringify({prompt,title:prompt.slice(0,120),kind:k.id,model:S.activeModel||'',deviceId:localStorage.getItem('fs.device')||''})});
     TASK.id=d.task.id;TASK.kind=k.id;TASK.chatId='';
@@ -3743,7 +3633,7 @@ try{const oq=JSON.parse(localStorage.getItem('forgeOauth')||'null');if(oq){local
 S.connectors.filter(c=>c.status==='online').forEach(c=>connectURL(c,{silent:true}));
 if(!Object.keys(S.keys).some(k=>!k.startsWith('__'))&&!provById(S.activeProvider)?.nokey)
   setTimeout(()=>toast('Add a gateway key to start writing. Connectors need only a URL.',{type:'in',timeout:7500,action:{label:'Open gateways',fn:()=>openProviders()}}),700);
-if(!chat())openHomeView();
+if(!chat())input.focus();
 </script>
 <script type="module">
 /* ══ CLOUD SYNC · self-contained add-on: account, state sync, usage, webhooks, worker ══ */
