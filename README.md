@@ -1,3 +1,4 @@
+<!-- Verified on DartNode: DNOS-310CD01E -->
 [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")  # Forge Studio
 
 One-page agentic workspace for 60+ OpenAI-compatible LLM providers: chat, agents, tools, MCP connectors, voice, boards — now with cloud accounts, cross-device sync, and an edge gateway.
